@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Reference interpretation: formal colour, central alignment, distinct motion.
+     This is a real preview; installation changes are enabled only in the native settings window. -->
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Opening Studio · 开屏选择</title>
+<link rel="stylesheet" href="assets/fonts.css"><link rel="stylesheet" href="assets/gallery.css">
+<script src="assets/lettering.js"></script><script src="assets/logo.js"></script><script src="assets/marks.js"></script><script src="assets/themes.js"></script><script src="assets/premium.js"></script><script src="assets/renderer.js"></script></head>
+<body><main>
+ <header><a class="wordmark" href="#"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24V8h22v16M10 24V13h12v11M15 24v-6h2v6"/></svg><span>Opening Studio</span></a><span class="edition">MACOS · 开屏系列 03</span></header>
+ <section class="intro"><div><p class="eyebrow">CHOOSE YOUR ENTRANCE</p><h1>让开始，多一种可能。</h1></div><p class="intro-note">为 ChatGPT、Claude 和你的应用准备。<br>只在冷启动播放，切回应用时保持安静。</p></section>
+ <section class="app-controls" aria-label="应用设置">
+  <label class="app-field" for="target-app"><span class="eyebrow">APPLICATION</span><select id="target-app" aria-label="目标应用"></select></label>
+  <label class="app-toggle"><input type="checkbox" id="profile-enabled">为此应用启用开屏</label>
+  <button id="add-app" class="add-app" hidden>＋ 添加应用</button><span id="app-note" class="app-note"></span>
+ </section>
+ <section class="workbench">
+  <div class="viewer"><div class="stage"><canvas id="stage" aria-label="开屏动画预览"></canvas></div>
+   <div class="transport"><button id="play" class="icon-button" aria-label="播放动画">▶</button><button id="replay" class="text-button">重播</button><input id="seek" type="range" min="0" max="15.8" step="0.01" value="0" aria-label="动画时间"><span id="time" class="time">00.0 / 15.8</span></div>
+  </div>
+  <aside><p class="eyebrow">SELECTED OPENING</p><span id="number" class="number">02</span><h2 id="name">朱砂 · 启卷</h2><p id="english" class="english">Cinnabar Folio</p><p id="description" class="description"></p><p id="motif" class="motif"></p><div class="decision"><button id="apply" class="apply" hidden>用作开场动画</button><p id="status">预览页。可在菜单栏的 Opening Studio 中应用样式。</p></div></aside>
+ </section>
+ <section id="choices" class="choices" aria-label="开屏样式选择"></section>
+ <footer><span>每一种开场，都回到你的真实窗口。</span><span>本地播放 · 无声开场</span></footer>
+</main><script src="assets/gallery.js"></script></body></html>

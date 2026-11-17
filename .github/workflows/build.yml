@@ -1,0 +1,30 @@
+name: Build macOS release artifacts
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build universal app
+        run: zsh scripts/build-native.sh --universal
+      - name: Verify signature and architectures
+        run: |
+          codesign --verify --deep --strict 'delivery/Welcome Tommy.app'
+          lipo -archs 'delivery/Welcome Tommy.app/Contents/MacOS/WelcomeTommy'
+      - name: Package release
+        run: python3 scripts/package-release.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: OpeningStudio-macos
+          path: |
+            release/*.zip
+            release/SHA256SUMS.txt
+            release/manifest.json
+          if-no-files-found: error

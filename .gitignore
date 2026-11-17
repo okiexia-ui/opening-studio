@@ -1,0 +1,22 @@
+.build/
+film/.hyperframes/
+film/.history/
+__pycache__/
+.DS_Store
+node_modules/
+film/assets/gsap.min.js
+film/variants/
+delivery/*.app/
+delivery/*.mp4
+delivery/*.png
+release/
+.local/
+# Local HyperFrames authoring scaffolding, not required by the runtime.
+film/AGENTS.md
+film/CLAUDE.md
+film/compositions/components/
+film/hyperframes.lock.json
+film/hyperframes.json
+film/meta.json
+film/.thumbnails/
+delivery/.*.hf-transaction-*/

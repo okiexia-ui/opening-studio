@@ -9,7 +9,8 @@ permissions:
   contents: read
 jobs:
   macos:
-    runs-on: macos-latest
+    # Validate the universal binary on Intel; local GUI tests use Apple Silicon.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v7
       - name: Build universal app

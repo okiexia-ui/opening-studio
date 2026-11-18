@@ -9,8 +9,9 @@ permissions:
   contents: read
 jobs:
   checks:
-    # Drift guards plus the headless renderer, gallery and native-protocol suite.
-    runs-on: macos-15
+    # Keep the macOS fonts for the browser suite. Hosted arm64 jobs can expire
+    # before a runner is assigned. Apple Silicon is exercised on the local Mac.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

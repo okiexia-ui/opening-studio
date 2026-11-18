@@ -20,3 +20,4 @@ film/hyperframes.json
 film/meta.json
 film/.thumbnails/
 delivery/.*.hf-transaction-*/
+delivery/**/*.mp4

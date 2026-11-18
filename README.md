@@ -58,7 +58,7 @@ ChatGPT 使用六瓣编织结，Claude 使用官网星芒图形，其他应用�
 
 ## 安装
 
-在 [GitHub Releases](https://github.com/okiexia-ui/opening-studio/releases) 下载正式发布后的安装包。草稿 Release 仅仓库维护者可见；在正式发布前可以从源码构建。
+在 [GitHub Releases](https://github.com/okiexia-ui/opening-studio/releases) 下载最新安装包（当前为 v0.3.0），也可以从源码构建。
 
 1. 解压 `OpeningStudio-v0.3.0-macos-universal.zip`，保持文件夹结构。
 2. 双击 `安装 Opening Studio.command`。只使用 macOS 自带工具，无需 Python 或 Xcode。

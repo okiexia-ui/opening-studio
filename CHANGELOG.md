@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Redesign the set: keep Frosted Script, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain;
   replace Cinnabar Folio, Midnight Orbit and Aurum Theatre with Ink Landscape, Aurora Field and Phosphor Terminal.
@@ -11,9 +11,6 @@
 - Rewrite the renderer and shared stage skeleton in readable form; trace any greeting, font or layout into a pen path.
 - Test every palette, accent, pace, element extreme, font, layout and size for motion and a transparent exit, plus
   schema sanity and migration consistency between Swift and JS.
-
-## 0.3.0
-
 - Make the greeting editable (greeting word, name, Great Wall Pass title and seal) with a live preview in the
   settings window. Handwritten styles trace any phrase into a single-stroke pen path at runtime.
 - Add four openings: 长城 · 通行 (Great Wall Pass, adapted from dsh-gov-boot), 星烛 · 咒语 (Candlelit Spell),

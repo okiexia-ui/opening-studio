@@ -2,8 +2,18 @@
 
 Public source repository: https://github.com/okiexia-ui/opening-studio
 
-The v0.3.0 release is prepared as a GitHub draft. Packaging only creates local
-archives; publishing the draft is a separate maintainer action.
+Each release is prepared as a GitHub draft, checked, then published. Packaging
+only creates local archives; publishing the draft is a separate maintainer action.
+
+Render the demo set (frost from the root composition, the others from
+`film/variants`, all with default options) before packaging with demos:
+
+```sh
+node scripts/hf.cjs render --quality delivery --fps 60 -o '../delivery/Welcome Tommy.mp4'
+node scripts/hf.cjs render variants/ink --quality delivery --fps 60 -o '../delivery/Ink Landscape.mp4'
+# … aurora → Aurora Field, terminal → Phosphor Terminal, civic → Great Wall Pass,
+#   spell → Candlelit Spell, voyage → Planetary Voyage, neon → Neon Rain, claude → Claude Ink
+```
 
 ## Reproduce artifacts
 

@@ -50,7 +50,9 @@ ChatGPT 使用六瓣编织结，Claude 使用官网星芒图形，其他应用�
 
 支持 macOS 13+，提供 Apple Silicon / Intel 通用二进制；实际运行验证在 Apple Silicon 上完成。
 
-> **首次打开被 macOS 拦截？** 当前二进制为 ad-hoc 签名，未做 Developer ID 公证，从互联网下载的脚本会被 Gatekeeper 拦下。macOS 13–14：在 Finder 中按住 Control 点按该文件，选择 **打开**。macOS 15 及以后：先双击一次，再到 **系统设置 › 隐私与安全性** 点击 **仍要打开**。也可以在终端进入解压目录运行 `zsh scripts/install.sh`。安装程序复制应用时不保留下载隔离标记，以便登录项能正常启动。
+> 当前安装包使用 ad-hoc 签名，尚未取得 Apple 公证。安装器保留下载来源标记。如果系统提示无法验证开发者，请参阅 [Apple 的 macOS 应用安全说明](https://support.apple.com/zh-cn/102445)。
+
+升级前会先校验新包。登录项启动失败会恢复上一版，已经关闭的登录项在升级后继续保持关闭。
 
 ### 暂停、退出与卸载
 
@@ -108,7 +110,7 @@ python3 scripts/package-release.py
 
 ## 验证与授权
 
-覆盖三种标志、八种主题、五种窗口比例、透明退出、设置隔离、取消播放竞态和选择器交互。两个独立测试应用覆盖冷启动、窗口缩放、关闭单个适配、保存重启、不重播和并发接替。真实第三方软件未被强制退出做逐个冷启动测试；跨 Spaces、全屏与多屏的所有组合仍有待验证。
+测试覆盖三种标志、八种主题、五种窗口比例和透明退出。两个独立测试应用验证后台启动、窗口缩放、关窗重开与连续启动。Apple Silicon 实机上，Claude 完整播放了 11.8 秒朱砂开屏，再次点开同一进程没有重播。多屏、Spaces 和全屏组合的验证范围见[应用适配说明](docs/APPS.md)。
 
 原有连笔速度为舒缓的 Apple hello 风格复刻，并非测量过的 iOS 18 逐帧复制。新增配色与构图见 [设计说明](docs/DESIGN.md)。
 
@@ -120,7 +122,7 @@ python3 scripts/package-release.py
 
 Opening Studio adds a silent opening animation to ChatGPT, Claude and other macOS apps. It plays only on a cold process launch, follows the app's real window, and ends by opening a transparent aperture onto it. Switching back to a running app never replays it. Each app gets its own style and on/off switch.
 
-- **Install:** unzip the release, keep the folder structure, and open `安装 Opening Studio.command` (install). It uses only built-in macOS tools. The build is ad-hoc signed and not notarized. If macOS blocks it, Control-click › Open (macOS 13–14), or use System Settings › Privacy & Security › Open Anyway (macOS 15+).
+- Unzip the release, keep the folder structure and open `安装 Opening Studio.command`. The installer uses tools included with macOS and preserves download provenance. The build has an ad-hoc signature and awaits Apple notarization. [Apple's guide to opening downloaded apps](https://support.apple.com/en-us/102445)
 - **Use:** choose apps and one of eight styles from the menu-bar dotted-circle icon › 应用与开屏… (apps & openings). Styles: Frosted Script, Cinnabar Folio, Midnight Orbit, Aurum Theatre, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain.
 - **Quit / uninstall:** menu bar › 退出 Opening Studio (quit) stops it until next login. `delivery/卸载 Opening Studio.command` (uninstall) removes the app and login item and keeps your settings.
 - **Privacy:** no network access during playback, and no Accessibility or Screen Recording permission. It reads only launch events, app icons and window bounds, and never chat content.

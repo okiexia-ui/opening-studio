@@ -14,7 +14,9 @@
 - Test profile persistence, disabled apps and two-app lifecycle coordination.
 - Replace the Python installer with `scripts/install.sh`, which needs only built-in macOS tools.
 - Add an uninstall command and a menu-bar Quit item. A deliberate quit is not restarted until the next login.
-- Read every watched app's window bounds from one shared snapshot, and skip that sampling while paused.
+- Require a foreground cold launch with a visible window. Closing the window dismisses the overlay.
+- Preserve in-progress greeting and style edits during native updates and keep settings intact after a failed save.
+- Verify and stage the companion before upgrading and restore the prior installation if startup fails.
 - Adopt the renderer-reported duration at playback start. Rotate the event log instead of wiping it.
 - Add `scripts/check-consistency.cjs` for theme timings, bundled assets and version drift, and run renderer checks in CI.
 - Document Gatekeeper first-run steps, quitting, uninstalling and troubleshooting, with an English summary.

@@ -26,6 +26,14 @@ struct Greeting: Codable, Equatable {
     init(greeting: String, name: String, title: String, seal: String) {
         self.greeting=greeting; self.name=name; self.title=title; self.seal=seal
     }
+    init(from decoder: Decoder) throws {
+        let fields = try decoder.container(keyedBy:CodingKeys.self)
+        let defaults = Greeting.standard
+        self.init(greeting:try fields.decodeIfPresent(String.self, forKey:.greeting) ?? defaults.greeting,
+                  name:try fields.decodeIfPresent(String.self, forKey:.name) ?? defaults.name,
+                  title:try fields.decodeIfPresent(String.self, forKey:.title) ?? defaults.title,
+                  seal:try fields.decodeIfPresent(String.self, forKey:.seal) ?? defaults.seal)
+    }
     init(fields: [String: Any]) {
         let s=Greeting.standard
         self.init(greeting:Greeting.clean(fields["greeting"] as? String,"greeting",s.greeting),
@@ -49,7 +57,10 @@ struct AppProfile: Codable, Equatable {
         return "portal"
     }
     var applicationURL: URL? {
-        if let path, FileManager.default.fileExists(atPath:path) { return URL(fileURLWithPath:path) }
+        if let path {
+            let url=URL(fileURLWithPath:path)
+            if Bundle(url:url)?.bundleIdentifier == bundleID {return url}
+        }
         return NSWorkspace.shared.urlForApplication(withBundleIdentifier:bundleID)
     }
     static func fromApplication(_ url: URL) -> AppProfile? {
@@ -70,35 +81,71 @@ struct ProfileDocument: Codable {
     var profiles: [AppProfile]
     /// Absent in older files and while the defaults are in use.
     var greeting: Greeting?
+    mutating func update(_ profile:AppProfile) {
+        if let i=profiles.firstIndex(where:{$0.bundleID==profile.bundleID}) {profiles[i]=profile}
+        else {profiles.append(profile)}
+    }
 }
 
 final class ProfileStore {
-    var document: ProfileDocument
+    private(set) var document: ProfileDocument
     let url: URL?
+    private(set) var loadError: Error?
+    private var lastRead: Data?
+    private enum FileProblem: LocalizedError {
+        case unsupported, changed
+        var errorDescription: String? {
+            switch self {
+            case .unsupported: return "无法读取此版本的应用设置，原文件已保留。"
+            case .changed: return "设置文件已被其他程序修改，请重新启动 Opening Studio 后再保存。"
+            }
+        }
+    }
+    private static func contents(_ url:URL) throws -> Data? {
+        do {return try Data(contentsOf:url)}
+        catch let error as CocoaError where error.code == .fileReadNoSuchFile {return nil}
+    }
     init(url: URL?, fallback: [AppProfile]) {
         self.url=url
-        if let url, let data=try? Data(contentsOf:url), let decoded=try? JSONDecoder().decode(ProfileDocument.self,from:data), !decoded.profiles.isEmpty {
+        document=ProfileDocument(selectedID:fallback[0].bundleID,profiles:fallback)
+        do {
+            guard let url, let data=try Self.contents(url) else {return}
+            let decoded=try JSONDecoder().decode(ProfileDocument.self,from:data)
+            guard decoded.version == 1 else {throw FileProblem.unsupported}
             var seen=Set<String>()
             let profiles=decoded.profiles.filter { !$0.bundleID.isEmpty && seen.insert($0.bundleID).inserted }.map { p -> AppProfile in
                 var p=p;if openingThemes[p.theme] == nil {p.theme="frost"};return p
             }
-            document=ProfileDocument(selectedID:decoded.selectedID,profiles:profiles.isEmpty ? fallback:profiles,greeting:decoded.greeting?.sanitized)
-        } else { document=ProfileDocument(selectedID:fallback[0].bundleID,profiles:fallback) }
+            guard !profiles.isEmpty else {throw FileProblem.unsupported}
+            document=ProfileDocument(selectedID:decoded.selectedID,profiles:profiles,greeting:decoded.greeting?.sanitized)
+            lastRead=data
+        } catch {loadError=error}
         if !document.profiles.contains(where:{$0.bundleID==document.selectedID}) {document.selectedID=document.profiles[0].bundleID}
     }
     var selected: AppProfile { profile(document.selectedID) ?? document.profiles[0] }
     var greeting: Greeting { document.greeting ?? .standard }
     func profile(_ id:String)->AppProfile? {document.profiles.first{$0.bundleID==id}}
-    func save() throws {
-        guard let url else{return}
-        try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true)
-        let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
-        try encoder.encode(document).write(to:url,options:.atomic)
-        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
-    }
-    func update(_ profile:AppProfile) {
-        if let i=document.profiles.firstIndex(where:{$0.bundleID==profile.bundleID}) {document.profiles[i]=profile}
-        else {document.profiles.append(profile)}
+    func commit(_ change: (inout ProfileDocument) -> Void) throws {
+        if let loadError {throw loadError}
+        var next=document
+        change(&next)
+        if let url {
+            guard try Self.contents(url) == lastRead else {throw FileProblem.changed}
+            let dir=url.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true)
+            let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
+            let bytes=try encoder.encode(next)
+            let temp=dir.appendingPathComponent(".profiles-"+UUID().uuidString+".tmp")
+            let fd=Darwin.open(temp.path,O_WRONLY|O_CREAT|O_EXCL,mode_t(0o600))
+            guard fd >= 0 else {throw NSError(domain:NSPOSIXErrorDomain,code:Int(errno))}
+            defer {try? FileManager.default.removeItem(at:temp)}
+            let file=FileHandle(fileDescriptor:fd,closeOnDealloc:true)
+            try file.write(contentsOf:bytes)
+            try file.close()
+            guard Darwin.rename(temp.path,url.path) == 0 else {throw NSError(domain:NSPOSIXErrorDomain,code:Int(errno))}
+            lastRead=bytes
+        }
+        document=next
     }
     static func defaults()->[AppProfile] {
         let rows:[(String,String,String,Bool)]=[
@@ -112,7 +159,7 @@ final class ProfileStore {
         return rows.map {id,name,theme,enabled in
             let path="/Applications/\(name).app"
             let legacy=id=="com.openai.codex" ? UserDefaults.standard.string(forKey:"openingTheme"):nil
-            return AppProfile(bundleID:id,name:name,theme:legacy ?? theme,enabled:enabled,path:FileManager.default.fileExists(atPath:path) ? path:nil)
+            return AppProfile(bundleID:id,name:name,theme:legacy.flatMap { openingThemes[$0] != nil ? $0:nil } ?? theme,enabled:enabled,path:FileManager.default.fileExists(atPath:path) ? path:nil)
         }
     }
 }

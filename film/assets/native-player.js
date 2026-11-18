@@ -11,10 +11,12 @@ async function configure(input,request){
 window.configureWelcome=async input=>{cancelAnimationFrame(animationId);const request=++generation;const o=await configure(input,request);return o?{theme:o.theme,mark:o.mark,copy:o.copy,duration:renderer.duration}:null;};
 window.playWelcome=async input=>{
  cancelAnimationFrame(animationId);const request=++generation,o=await configure(input,request);if(!o||request!==generation)return;
- let start=null;
- function tick(stamp){if(request!==generation)return;const first=start===null;if(first)start=stamp;
-  const t=(stamp-start)/1000;renderer.at(Math.min(t,renderer.duration));
-  if(first)nativePost({event:'started',duration:renderer.duration,token:o.token});
+ // configure() has already painted frame zero. WebKit can suspend animation
+ // frames until AppKit makes the panel visible, so acknowledge that frame now.
+ const start=performance.now();
+ nativePost({event:'started',duration:renderer.duration,token:o.token});
+ function tick(stamp){if(request!==generation)return;
+  const t=Math.max(0,(stamp-start)/1000);renderer.at(Math.min(t,renderer.duration));
   if(t<renderer.duration)animationId=requestAnimationFrame(tick);else nativePost({event:'finished',token:o.token});
  }
  animationId=requestAnimationFrame(tick);

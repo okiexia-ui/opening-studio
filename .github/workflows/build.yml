@@ -33,6 +33,8 @@ jobs:
           lipo -archs 'delivery/Welcome Tommy.app/Contents/MacOS/WelcomeTommy'
       - name: Lint shell scripts
         run: for f in scripts/*.sh delivery/*.command *.command; do zsh -n "$f"; done
+      - name: Exercise installation and rollback in an isolated Library
+        run: python3 scripts/test-install.py
       - name: Package release
         run: python3 scripts/package-release.py
       - uses: actions/upload-artifact@v7

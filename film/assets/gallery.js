@@ -12,7 +12,7 @@
   ];
   let renderer, selected, profile, profiles = [], playing = false, start = 0, frame = null, t = 0;
   let savedCopy = WelcomeFilm.normalizeCopy(Object.fromEntries(FIELDS.map(k => [k, params.get(k)])));
-  let copy = savedCopy, copyTimer = null;
+  let copy = savedCopy, copyTimer = null, editRevision = 0, submittedRevision = -1;
   const thumbs = [];
   const sameCopy = (a, b) => FIELDS.every(k => a[k] === b[k]);
 
@@ -40,11 +40,16 @@
     if (bridge) $('status').textContent = '保存后，下次完整退出并打开此应用时生效。';
     update();
   }
-  function chooseApp(id) {
+  function chooseApp(id, draft = {}, copyChanged = false) {
+    const previous = profile;
     profile = profiles.find(x => x.bundleID === id) || profiles[0];
-    $('target-app').value = profile.bundleID; $('profile-enabled').checked = profile.enabled;
+    const theme = draft.theme ?? profile.theme;
+    $('target-app').value = profile.bundleID; $('profile-enabled').checked = draft.enabled ?? profile.enabled;
     $('app-note').textContent = bridge ? (profile.installed === false ? '未检测到此应用；安装后即可生效。' : '样式和开关独立保存，切回时不重播。') : '浏览器内可预览，安装后可添加本机应用。';
-    choose(profile.theme); paintThumbs();
+    if (previous?.bundleID !== profile.bundleID || selected?.id !== theme ||
+        previous?.icon !== profile.icon || previous?.mark !== profile.mark || copyChanged) {
+      choose(theme); paintThumbs();
+    }
   }
   function play(restart = false) {
     if (playing) { stop(); return; }
@@ -63,25 +68,40 @@
     $('copy-note').textContent = !bridge ? '浏览器内只预览；在菜单栏的“应用与开屏…”中保存。'
       : dirty ? '问候已修改，尚未保存。' : '问候对所有应用和样式生效；连笔类样式会按名字重新生成笔迹。';
   }
-  function previewCopy() {
+  function readCopy() {
     copy = WelcomeFilm.normalizeCopy(Object.fromEntries(FIELDS.map(k => [k, $(`copy-${k}`).value])));
-    makeRenderer(); paintThumbs(); update(); copyState();
+    editRevision++; copyState();
+  }
+  function paintCopy() {
+    makeRenderer(); paintThumbs(); update();
   }
   for (const k of FIELDS) {
     const input = $(`copy-${k}`);
-    input.placeholder = WelcomeFilm.copyDefaults[k]; input.maxLength = WelcomeFilm.copyLimits[k];
-    input.addEventListener('input', () => { clearTimeout(copyTimer); copyTimer = setTimeout(previewCopy, 220); });
+    input.placeholder = WelcomeFilm.copyDefaults[k];
+    const changed = event => {
+      if (event.isComposing) return;
+      // HTML maxlength counts UTF-16 code units. The renderer and Swift count Unicode scalars.
+      const scalars = Array.from(input.value);
+      if (scalars.length > WelcomeFilm.copyLimits[k]) input.value = scalars.slice(0, WelcomeFilm.copyLimits[k]).join('');
+      readCopy();
+      clearTimeout(copyTimer); copyTimer = setTimeout(paintCopy, 220);
+    };
+    input.addEventListener('input', changed);
+    input.addEventListener('compositionend', changed);
   }
-  $('copy-reset').addEventListener('click', () => { showCopy(WelcomeFilm.copyDefaults); previewCopy(); });
+  $('copy-reset').addEventListener('click', () => { clearTimeout(copyTimer); showCopy(WelcomeFilm.copyDefaults); readCopy(); paintCopy(); });
   $('copy-save').hidden = !bridge;
   $('copy-save').addEventListener('click', () => {
-    clearTimeout(copyTimer); previewCopy();
+    submittedRevision = editRevision;
     $('copy-note').textContent = '正在保存…';
     bridge.postMessage({event: 'copy', ...copy});
   });
   window.didSaveCopy = values => {
     savedCopy = WelcomeFilm.normalizeCopy(values);
-    if (sameCopy(copy, savedCopy)) { showCopy(savedCopy); copyState(); $('copy-note').textContent = '已保存：所有应用的开屏都会使用新的问候。'; }
+    copyState();
+    if (submittedRevision === editRevision && sameCopy(copy, savedCopy)) {
+      showCopy(savedCopy); $('copy-note').textContent = '所有应用的开屏问候已保存。';
+    }
   };
 
   /* ---- styles and apps ---- */
@@ -108,20 +128,28 @@
   window.didApplyTheme = result => {
     const p = profiles.find(x => x.bundleID === result.bundleID);
     if (p) { p.theme = result.theme; p.enabled = result.enabled; }
+    if (profile.bundleID !== result.bundleID || selected.id !== result.theme || $('profile-enabled').checked !== result.enabled) return;
     $('apply').textContent = '已保存';
     $('status').textContent = result.enabled ? '下次冷启动生效，切回时不重播。' : '已关闭此应用的开屏。';
   };
-  window.openingError = text => { $('status').textContent = text; };
+  window.openingError = (text, field) => { $(field === 'copy' ? 'copy-note' : 'status').textContent = text; };
   window.updateOpeningProfiles = data => {
     // Native resyncs often; never overwrite a greeting that is being edited.
+    let copyChanged = false;
     if (data.copy) {
-      const incoming = WelcomeFilm.normalizeCopy(data.copy), editing = !sameCopy(copy, savedCopy);
+      const incoming = WelcomeFilm.normalizeCopy(data.copy);
+      const editing = FIELDS.some(k => $(`copy-${k}`).value !== savedCopy[k]);
       savedCopy = incoming;
-      if (!editing) { copy = incoming; showCopy(copy); }
+      if (!editing && !sameCopy(copy, incoming)) { copy = incoming; showCopy(copy); copyChanged = true; }
+    }
+    const draft = {};
+    if (profile && data.selectedID === profile.bundleID) {
+      if (selected.id !== profile.theme) draft.theme = selected.id;
+      if ($('profile-enabled').checked !== profile.enabled) draft.enabled = $('profile-enabled').checked;
     }
     profiles = data.profiles?.length ? data.profiles : examples;
     $('target-app').replaceChildren(...profiles.map(p => { const option = document.createElement('option'); option.value = p.bundleID; option.textContent = p.name; return option; }));
-    chooseApp(data.selectedID || profiles[0].bundleID);
+    chooseApp(data.selectedID || profiles[0].bundleID, draft, copyChanged);
     copyState();
   };
   window.selectWelcomeTheme = choose;

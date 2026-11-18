@@ -8,9 +8,11 @@
   "scripts": {
     "postinstall": "node scripts/prepare-vendor.cjs",
     "preview": "node scripts/hf.cjs preview --background",
-    "check": "node scripts/check-renderer.cjs",
+    "check": "node scripts/check-consistency.cjs && node scripts/check-renderer.cjs",
     "build:mac": "zsh scripts/build-native.sh",
-    "package": "python3 scripts/package-release.py"
+    "package": "python3 scripts/package-release.py",
+    "check:fast": "node scripts/check-consistency.cjs",
+    "install:mac": "zsh scripts/install.sh"
   },
   "devDependencies": { "hyperframes": "0.8.230", "puppeteer-core": "25.14.0" }
 }

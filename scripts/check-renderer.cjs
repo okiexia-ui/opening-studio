@@ -4,9 +4,10 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
  const browser=await puppeteer.launch({executablePath,headless:true});
  try {
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
-  const themes=['frost','cinnabar','midnight','aurum'],viewports=[[1920,1080],[1470,853],[900,700],[500,900],[320,1200]],results=[];
+  const viewports=[[1920,1080],[1470,853],[900,700],[500,900],[320,1200]],results=[];
   fs.mkdirSync('.build',{recursive:true});fs.mkdirSync('docs/media',{recursive:true});
   await page.goto('file://'+path.resolve('film/native.html'));await page.waitForFunction('typeof renderer !== "undefined" && !!renderer');
+  const themes=await page.evaluate(()=>WelcomeThemes.map(x=>x.id));
   for(const theme of themes)for(const [width,height] of viewports){
    await page.setViewport({width,height,deviceScaleFactor:1});
    await page.evaluate(id=>configureWelcome(id),theme);
@@ -22,6 +23,22 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
    results.push({theme,viewport:[width,height],hashes,...report});
    if(width===1920){await page.evaluate(id=>renderer.at(WelcomeThemes.find(x=>x.id===id).posterTime),theme);await page.screenshot({path:`docs/media/${theme}.png`});}
   }
+  // Custom greetings: every theme takes the words, stays continuous, fits the stage and still exits cleanly.
+  const custom=[{greeting:'Hello',name:'Ada Lovelace',title:'早上好',seal:'通'},{greeting:'你好',name:'小明',title:'智能政务工作平台',seal:'准予通行'}];
+  for(const copy of custom)for(const theme of themes)for(const [width,height] of [[1920,1080],[320,1200]]){
+   await page.setViewport({width,height,deviceScaleFactor:1});
+   await page.evaluate(o=>configureWelcome(o),{theme}).then(()=>page.evaluate(()=>{renderer.at(renderer.duration*.45);window.__base=document.getElementById('canvas').toDataURL();}));
+   const info=await page.evaluate(o=>configureWelcome(o),{theme,copy});
+   const r=await page.evaluate(()=>{const m=renderer.metrics(),c=document.getElementById('canvas'),frames=[];for(const f of [.15,.45,.65,.9]){renderer.at(renderer.duration*f);frames.push(c.toDataURL());}
+    const differs=frames[1]!==window.__base;renderer.at(renderer.duration);const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let opaque=false;for(let i=3;i<d.length;i+=4)if(d[i]){opaque=true;break;}
+    return {copy:m.copy,joins:m.joinDistances,bounds:m.textBounds,distinct:new Set(frames).size,differs,opaque};});
+   assert.deepStrictEqual(info.copy,copy,`${theme} receives the custom words`);assert.deepStrictEqual(r.copy,copy);
+   assert(r.joins.every(x=>x<.001),`${theme} pen path stays continuous for ${copy.name}`);
+   assert(r.bounds.minX>=200&&r.bounds.maxX<=1720&&r.bounds.minY>=380&&r.bounds.maxY<=760,`${copy.name} handwriting fits the stage: ${JSON.stringify(r.bounds)}`);
+   assert.equal(r.distinct,4,`${theme} still moves with ${copy.name}`);assert(r.differs,`${theme} shows the custom words`);assert.equal(r.opaque,false,`${theme} exits transparently with ${copy.name}`);
+  }
+  // Over-long and hostile input is cleaned the same way native code cleans it.
+  assert.deepStrictEqual(await page.evaluate(()=>WelcomeFilm.normalizeCopy({greeting:'  ',name:'A\u0007\u202Eda\n\n Lovelace-Byron-King',title:7,seal:'一二三四五'})),{greeting:'Welcome',name:'Ada Lovelace-Byr',title:'欢迎回来',seal:'一二三四'});
   // Alternative brand geometry must remain continuous and reveal every pixel.
   for(const mark of ['claude','portal'])for(const theme of themes)for(const [width,height] of [[1920,1080],[320,1200]]){
    await page.setViewport({width,height,deviceScaleFactor:1});await page.evaluate(o=>configureWelcome(o),{theme,mark});
@@ -51,6 +68,13 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
   await page.evaluate(x=>didApplyTheme(x),saved);await page.select('#target-app','com.openai.codex');assert.equal(await page.$eval('[data-theme="frost"]',e=>e.getAttribute('aria-pressed')),'true');
   await page.select('#target-app','com.anthropic.claudefordesktop');assert.equal(await page.$eval('[data-theme="aurum"]',e=>e.getAttribute('aria-pressed')),'true');assert.equal(await page.$eval('#profile-enabled',e=>e.checked),false);
   await page.click('#add-app');assert(await page.evaluate(()=>__settingsMessages.some(x=>x.event==='add_app')));
+  // Greeting editor: live edit, save over the bridge, confirmation.
+  for(const [id,v] of [['#copy-name','Ada'],['#copy-greeting','Hello'],['#copy-seal','通']]){await page.$eval(id,e=>{e.value='';});await page.type(id,v);}
+  await new Promise(r=>setTimeout(r,400));assert.equal(await page.$eval('#copy-save',e=>e.disabled),false,'Save enables after an edit');
+  await page.click('#copy-save');const copyMessage=await page.evaluate(()=>__settingsMessages.findLast(x=>x.event==='copy'));
+  assert.deepStrictEqual(copyMessage,{event:'copy',greeting:'Hello',name:'Ada',title:'欢迎回来',seal:'通'});
+  await page.evaluate(x=>didSaveCopy(x),copyMessage);assert.equal(await page.$eval('#copy-save',e=>e.disabled),true,'Save disables once stored');
+  await page.click('#copy-reset');await new Promise(r=>setTimeout(r,400));assert.equal(await page.$eval('#copy-name',e=>e.value),'Tommy');
   await page.setViewport({width:1440,height:1080,deviceScaleFactor:1});await page.click('[data-theme="cinnabar"]');await page.$eval('#profile-enabled',e=>e.checked=true);await page.screenshot({path:'docs/media/apps-gallery.png',fullPage:true});
   assert.deepStrictEqual(errors,[]);fs.writeFileSync('.build/renderer-validation-v03.json',JSON.stringify({ok:true,errors,results},null,2));
   console.log(JSON.stringify({ok:true,themes:themes.length,viewports:viewports.length,marks:3,checks:'motion, transparent exit, app/theme isolation, native protocol, cancellation, replay, seek, responsive layout',maxSubmissionMs:Math.max(...results.map(r=>r.frameMs))},null,2));

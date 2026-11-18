@@ -18,7 +18,7 @@ else
   cp "${TASK_BINARIES[1]}" "$TASK_APP/Contents/MacOS/WelcomeTommy"
 fi
 cp film/native.html film/gallery.html "$TASK_APP/Contents/Resources/film/"
-for TASK_ASSET in lettering.js logo.js marks.js renderer.js premium.js themes.js native-player.js gallery.js gallery.css fonts.css; do
+for TASK_ASSET in lettering.js handwriting.js logo.js marks.js renderer.js stages.js premium.js themes.js native-player.js gallery.js gallery.css fonts.css; do
   cp "film/assets/$TASK_ASSET" "$TASK_APP/Contents/Resources/film/assets/"
 done
 cp film/assets/fonts/* "$TASK_APP/Contents/Resources/film/assets/fonts/"

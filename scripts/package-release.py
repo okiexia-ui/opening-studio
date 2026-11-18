@@ -70,7 +70,7 @@ architectures = subprocess.check_output(['lipo', '-archs', str(app / 'Contents/M
 if not {'arm64', 'x86_64'}.issubset(architectures):
     raise SystemExit('Universal release requires: zsh scripts/build-native.sh --universal')
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
-binary_stage = stage(PREFIX, common + files(['scripts/install.py']))
+binary_stage = stage(PREFIX, common + files(['scripts/install.sh']))
 shutil.copytree(app, binary_stage / 'delivery/Welcome Tommy.app')
 archive(binary_stage, 'macos-universal')
 

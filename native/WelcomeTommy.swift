@@ -21,8 +21,18 @@ func argument(_ key: String) -> String? {
     return CommandLine.arguments[i+1]
 }
 
-func windowFrame(_ pid: pid_t) -> NSRect? {
-    guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return nil }
+/// One snapshot of on-screen window metadata. Reading it is the expensive part,
+/// so callers that need several apps' frames should share a single snapshot.
+func visibleWindowList() -> [[String: Any]] {
+    CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+}
+
+func desktopTop() -> CGFloat { NSScreen.screens.first?.frame.maxY ?? 0 }
+
+func windowFrame(_ pid: pid_t) -> NSRect? { largestWindowFrame(in: visibleWindowList(), pid: pid, desktopTop: desktopTop()) }
+
+/// The largest normal-layer, visible window of `pid`, flipped into AppKit coordinates.
+func largestWindowFrame(in list: [[String: Any]], pid: pid_t, desktopTop: CGFloat) -> NSRect? {
     let candidates = list.filter {
         ($0[kCGWindowOwnerPID as String] as? Int) == Int(pid) &&
         ($0[kCGWindowLayer as String] as? Int) == 0 &&
@@ -33,7 +43,6 @@ func windowFrame(_ pid: pid_t) -> NSRect? {
         return rect
     }
     guard let b = candidates.max(by: { $0.width*$0.height < $1.width*$1.height }) else { return nil }
-    let desktopTop = NSScreen.screens.first?.frame.maxY ?? 0
     return NSRect(x: b.minX, y: desktopTop-b.maxY, width:b.width, height:b.height)
 }
 
@@ -72,6 +81,7 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
     var animationCount=0
     var icons:[String:String]=[:]
     let logURL:URL
+    let timestampFormatter=ISO8601DateFormatter()
     var target:String {playingProfile?.bundleID ?? store.selected.bundleID}
 
     init(store:ProfileStore) {
@@ -80,11 +90,15 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         super.init()
     }
     func log(_ event:String,_ details:[String:Any]=[:]) {
-        var record=details;record["event"]=event;record["timestamp"]=ISO8601DateFormatter().string(from:Date())
+        var record=details;record["event"]=event;record["timestamp"]=timestampFormatter.string(from:Date())
         if record["target"] == nil {record["target"]=target}
         guard let data=try? JSONSerialization.data(withJSONObject:record,options:[.sortedKeys]) else{return}
         try? FileManager.default.createDirectory(at:logURL.deletingLastPathComponent(),withIntermediateDirectories:true)
-        if let attr=try? FileManager.default.attributesOfItem(atPath:logURL.path),(attr[.size] as? Int ?? 0)>1_000_000 {try? Data().write(to:logURL)}
+        // Rotate instead of wiping, so the events leading up to a problem survive.
+        if let attr=try? FileManager.default.attributesOfItem(atPath:logURL.path),(attr[.size] as? Int ?? 0)>1_000_000 {
+            let previous=logURL.deletingPathExtension().appendingPathExtension("previous.jsonl")
+            try? FileManager.default.removeItem(at:previous);try? FileManager.default.moveItem(at:logURL,to:previous)
+        }
         if !FileManager.default.fileExists(atPath:logURL.path) {FileManager.default.createFile(atPath:logURL.path,contents:nil)}
         if let f=try? FileHandle(forWritingTo:logURL) {defer{try? f.close()};_ = try? f.seekToEnd();try? f.write(contentsOf:data+Data([10]))}
     }
@@ -92,7 +106,7 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         do {try store.save();return true} catch {log("settings_save_error",["error":error.localizedDescription]);settingsWeb?.evaluateJavaScript("window.openingError('设置保存失败，请检查文件权限。')");return false}
     }
     func rendererConfig(_ profile:AppProfile)->[String:Any] {
-        var result:[String:Any]=["theme":profile.theme,"mark":profile.mark,"appName":profile.name]
+        var result:[String:Any]=["theme":profile.theme,"mark":profile.mark,"appName":profile.name,"copy":store.greeting.dictionary]
         if profile.mark=="portal" {
             if icons[profile.bundleID] == nil {icons[profile.bundleID]=appIconData(profile)}
             result["icon"]=icons[profile.bundleID] ?? ""
@@ -100,7 +114,7 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         return result
     }
     func settingsPayload()->[String:Any] {
-        ["selectedID":store.document.selectedID,"profiles":store.document.profiles.map{p -> [String:Any] in
+        ["selectedID":store.document.selectedID,"copy":store.greeting.dictionary,"copyDefaults":Greeting.standard.dictionary,"copyLimits":Greeting.limits,"profiles":store.document.profiles.map{p -> [String:Any] in
             var row=rendererConfig(p);row["bundleID"]=p.bundleID;row["name"]=p.name;row["enabled"]=p.enabled;row["installed"]=p.applicationURL != nil;return row
         }]
     }
@@ -180,12 +194,18 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         let apps=NSMenuItem(title:"当前应用："+store.selected.name,action:nil,keyEquivalent:""),submenu=NSMenu()
         for p in store.document.profiles {let x=item(p.name+(p.enabled ? "":"（关闭）"),#selector(profileClicked(_:)),p.bundleID);x.state=p.bundleID==store.document.selectedID ? .on:.off;submenu.addItem(x)}
         apps.submenu=submenu;menu.addItem(apps)
-        for id in ["frost","cinnabar","midnight","aurum"] {let x=item(openingThemeNames[id]!,#selector(themeClicked(_:)),id);x.state=id==store.selected.theme ? .on:.off;menu.addItem(x)}
+        let styles=NSMenuItem(title:"开屏样式："+(openingThemeNames[store.selected.theme] ?? store.selected.theme),action:nil,keyEquivalent:""),styleMenu=NSMenu()
+        for id in openingThemeOrder {let x=item(openingThemeNames[id]!,#selector(themeClicked(_:)),id);x.state=id==store.selected.theme ? .on:.off;styleMenu.addItem(x)}
+        styles.submenu=styleMenu;menu.addItem(styles)
         menu.addItem(.separator());menu.addItem(item("预览当前应用开屏",#selector(previewSelected)))
         menu.addItem(item("添加应用…",#selector(addApplication)))
         menu.addItem(item(enabled ? "暂停全部开屏":"启用全部开屏",#selector(toggleEnabled)))
+        menu.addItem(.separator())
+        let quit=item("退出 Opening Studio",#selector(quitCompanion));quit.keyEquivalent="q";quit.toolTip="下次登录，或运行“重新启用开场动画”时恢复";menu.addItem(quit)
         statusItem?.menu=menu
     }
+    /// A clean exit stays stopped: the LaunchAgent only restarts after a crash.
+    @objc func quitCompanion() {log("quit_by_user");NSApp.terminate(nil)}
     @objc func profileClicked(_ item:NSMenuItem) {if let id=item.representedObject as? String {selectProfile(id)}}
     func selectProfile(_ id:String) {
         guard store.profile(id) != nil else{return};store.document.selectedID=id;persist();prepareMenu();syncSettings();prewarm()
@@ -236,10 +256,17 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         let size=NSSize(width:min(1120,screen.width*0.84),height:min(790,screen.height*0.87))
         return NSRect(x:screen.midX-size.width/2,y:screen.midY-size.height/2,width:size.width,height:size.height)
     }
+    /// Remember where each enabled app's window lives, so the next cold launch
+    /// opens over the right area before that app has drawn a window.
     func rememberBounds() {
-        for p in store.document.profiles {
-            guard let app=NSRunningApplication.runningApplications(withBundleIdentifier:p.bundleID).first,
-                  let frame=windowFrame(app.processIdentifier) else{continue}
+        guard enabled else{return}
+        let running=store.document.profiles.filter(\.enabled).compactMap {p -> (AppProfile,pid_t)? in
+            NSRunningApplication.runningApplications(withBundleIdentifier:p.bundleID).first.map{(p,$0.processIdentifier)}
+        }
+        guard !running.isEmpty else{return}
+        let list=visibleWindowList(),top=desktopTop()
+        for (p,pid) in running {
+            guard let frame=largestWindowFrame(in:list,pid:pid,desktopTop:top) else{continue}
             if frames[p.bundleID] != frame {frames[p.bundleID]=frame;UserDefaults.standard.set(NSStringFromRect(frame),forKey:"frame-"+p.bundleID)}
         }
     }
@@ -303,6 +330,13 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
             case "ready": syncSettings();log("settings_ready")
             case "select_profile": if let id=body["bundleID"] as? String {selectProfile(id)}
             case "add_app": addApplication()
+            case "copy":
+                // One greeting for every app and style; the defaults are stored as "absent".
+                let next=Greeting(fields:body)
+                store.document.greeting = next == .standard ? nil:next
+                guard persist() else{return};prewarm()
+                settingsWeb?.evaluateJavaScript("window.didSaveCopy(\(javascriptJSON(next.dictionary)))")
+                log("greeting_saved",["custom":next != .standard])
             case "apply":
                 guard let id=body["bundleID"] as? String,var p=store.profile(id),let theme=body["theme"] as? String,openingThemes[theme] != nil else{return}
                 p.theme=theme;p.enabled=body["enabled"] as? Bool ?? p.enabled;store.update(p);store.document.selectedID=id
@@ -324,7 +358,11 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
             return
         }
         guard let eventToken=body["token"] as? String,eventToken==token,active != nil else{return}
-        if event=="started" {started=CACurrentMediaTime();awaitingStart=false;panel.alphaValue=1;log("animation_visible")}
+        if event=="started" {
+            // The renderer is the source of truth for timing; the native table is only a fallback.
+            if let rendered=body["duration"] as? Double,rendered>0 {duration=rendered}
+            started=CACurrentMediaTime();awaitingStart=false;panel.alphaValue=1;log("animation_visible",["duration":duration])
+        }
         else if event=="finished" {finish("completed")}
     }
     func webView(_ webView:WKWebView,didFailProvisionalNavigation navigation:WKNavigation!,withError error:Error) {log("renderer_error",["error":error.localizedDescription]);if webView==web {finish("renderer_error")}}
@@ -344,7 +382,22 @@ func runSelfTest() {
     precondition(store.profile(a.bundleID)==a && store.profile(c.bundleID)==c && store.profile(b.bundleID)?.theme=="midnight")
     precondition(a.mark=="openai" && b.mark=="claude" && c.mark=="portal")
     precondition(javascriptJSON(["name":"A\"B\\C"]).contains("A\\\"B"))
-    print("PASS: launch gate, PID reuse, profile isolation, app mark routing, JS escaping")
+    func window(_ pid:Int,_ x:Int,_ y:Int,_ w:Int,_ h:Int,layer:Int=0,alpha:Double=1)->[String:Any] {
+        [kCGWindowOwnerPID as String:pid,kCGWindowLayer as String:layer,kCGWindowAlpha as String:alpha,
+         kCGWindowBounds as String:["X":x,"Y":y,"Width":w,"Height":h]]
+    }
+    let windows=[window(7,0,0,200,150),window(7,100,40,900,600),window(7,0,0,1600,1000,layer:25),
+                 window(7,0,0,1500,950,alpha:0),window(8,0,0,1700,1100),window(7,50,30,800,500)]
+    precondition(largestWindowFrame(in:windows,pid:7,desktopTop:1000)==NSRect(x:100,y:360,width:900,height:600))
+    precondition(largestWindowFrame(in:windows,pid:9,desktopTop:1000)==nil)
+    precondition(Greeting.clean("  Ada\u{0007}  \n Lovelace\u{202E} ","name","x")=="Ada Lovelace")
+    precondition(Greeting.clean("   ","seal","准予通行")=="准予通行" && Greeting.clean("一二三四五","seal","x")=="一二三四")
+    precondition(Greeting(fields:["name":"Ada","greeting":7]).dictionary==["greeting":"Welcome","name":"Ada","title":"欢迎回来","seal":"准予通行"])
+    let legacy=try! JSONDecoder().decode(ProfileDocument.self,from:Data(#"{"version":1,"selectedID":"a","profiles":[{"bundleID":"a","name":"A","theme":"frost","enabled":true}]}"#.utf8))
+    precondition(legacy.greeting==nil)
+    var custom=legacy;custom.greeting=Greeting(fields:["name":"小明","seal":"通"])
+    precondition(try! JSONDecoder().decode(ProfileDocument.self,from:JSONEncoder().encode(custom)).greeting?.name=="小明")
+    print("PASS: launch gate, PID reuse, profile isolation, app mark routing, JS escaping, window selection, greeting cleaning and storage")
 }
 if CommandLine.arguments.contains("--self-test") {runSelfTest();exit(0)}
 let notificationScope=argument("--profiles").map{"test-"+URL(fileURLWithPath:$0).lastPathComponent} ?? argument("--target") ?? "com.openai.codex"

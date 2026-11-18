@@ -22,12 +22,14 @@ that every release of every application has been tested.
 
 Select an app, choose a theme and its enable switch, then click **保存此应用设置**.
 The menu-bar theme shortcuts apply to the currently selected app. **暂停全部开屏**
-is a global pause; individual switches remain saved. Manual preview requires
+is a global pause; individual switches remain saved. **退出 Opening Studio** stops
+the companion until the next login or until `重新启用开场动画.command` runs. Manual preview requires
 the selected app to be running.
 
 Configuration is stored at
 `~/Library/Application Support/WelcomeTommy/profiles.json` with user-only file
-permissions. On first migration, the former ChatGPT theme is retained. Existing
+permissions. The optional `greeting` object holds the edited greeting word, name, title and seal;
+it is absent while the defaults are in use. On first migration, the former ChatGPT theme is retained. Existing
 v0.2 installation paths and login-item identifiers remain valid.
 
 ## Verification and limits

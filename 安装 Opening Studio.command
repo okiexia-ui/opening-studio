@@ -1,5 +1,5 @@
 #!/bin/zsh
 set -euo pipefail
 cd "${0:A:h}"
-python3 scripts/install.py
-print 'Opening Studio 已安装，可从菜单栏打开开屏样式。'
+zsh scripts/install.sh
+print 'Opening Studio 已安装，可从菜单栏圆点环图标打开“应用与开屏…”。'

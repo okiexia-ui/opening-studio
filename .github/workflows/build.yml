@@ -8,6 +8,18 @@ on:
 permissions:
   contents: read
 jobs:
+  checks:
+    # Drift guards plus the headless renderer, gallery and native-protocol suite.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Consistency and renderer checks
+        run: npm run check
   macos:
     # Validate the universal binary on Intel; local GUI tests use Apple Silicon.
     runs-on: macos-15-intel
@@ -19,6 +31,8 @@ jobs:
         run: |
           codesign --verify --deep --strict 'delivery/Welcome Tommy.app'
           lipo -archs 'delivery/Welcome Tommy.app/Contents/MacOS/WelcomeTommy'
+      - name: Lint shell scripts
+        run: for f in scripts/*.sh delivery/*.command *.command; do zsh -n "$f"; done
       - name: Package release
         run: python3 scripts/package-release.py
       - uses: actions/upload-artifact@v7

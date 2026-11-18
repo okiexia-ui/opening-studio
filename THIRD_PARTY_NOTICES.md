@@ -52,3 +52,31 @@ reserved. This project traces the supplied geometry and claims no endorsement.
 Other application icons are read at runtime from the user's installed apps;
 those icons are not bundled with the source or native app. The generic portal
 is original project artwork.
+
+## dsh-gov-boot artwork (Great Wall Pass)
+
+The paper, meander-corner, cloud, geese, ridge, Great Wall and seal geometry
+in `film/assets/stages.js` (`civic`) is adapted from
+https://github.com/okiexia-ui/dsh-gov-boot, by the same author, under the MIT
+License:
+
+    Copyright (c) 2026 dsh-gov-boot contributors
+
+The full MIT permission notice is identical to this repository's `LICENSE`.
+The seal text, identity-check bar and connector are new. No national emblem,
+government seal, department name or page asset is included.
+
+## Genre themes
+
+Candlelit Spell, Planetary Voyage and Neon Rain are original canvas artwork.
+They evoke familiar fantasy, science-fiction and city-night moods without
+using any film or book title, logo, character, typeface, frame or music.
+
+## System fonts used at runtime
+
+Custom handwritten greetings are traced from fonts already installed with
+macOS: Snell Roundhand, with Kaiti SC or Songti SC for Chinese. The Great Wall
+Pass and Planetary Voyage text also uses installed Songti SC and Menlo. These
+fonts are rendered on the user's Mac and are not redistributed with this
+project.
+

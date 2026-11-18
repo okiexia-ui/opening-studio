@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Redesign the set: keep Frosted Script, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain;
+  replace Cinnabar Folio, Midnight Orbit and Aurum Theatre with Ink Landscape, Aurora Field and Phosphor Terminal.
+  Retired ids migrate to their successors everywhere (profiles, `--theme`, legacy preference, renderer).
+- Add per-style customisation: palettes with a custom accent, pace (duration ×1.22 / ×1 / ×0.78), font,
+  one- or two-line layout, text size and each style's own scene elements, with a live preview and thumbnails.
+  Saved as a minimal `styles` object in profiles.json; native code keeps the shape safe, `style.js` gives meaning.
+- Rewrite the renderer and shared stage skeleton in readable form; trace any greeting, font or layout into a pen path.
+- Test every palette, accent, pace, element extreme, font, layout and size for motion and a transparent exit, plus
+  schema sanity and migration consistency between Swift and JS.
+
 ## 0.3.0
 
 - Make the greeting editable (greeting word, name, Great Wall Pass title and seal) with a live preview in the

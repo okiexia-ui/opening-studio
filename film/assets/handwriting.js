@@ -1,7 +1,7 @@
 /* Single-stroke handwriting for any greeting.
  *
  * The default "Welcome Tommy" uses the hand-authored path in lettering.js.
- * Any other phrase is set in a connected script face, rasterised, thinned to
+ * Any other phrase, font or layout is set in that face, rasterised, thinned to
  * a one-pixel centreline (Zhang–Suen) and traced into an ordered pen path.
  * The path is in the same {x, y, l} form as the authored one. Points whose
  * `lift` flag is set arrive by a pen-up move, which painters skip. Non-Latin
@@ -11,21 +11,24 @@
  */
 window.WelcomeHandwriting = (() => {
   'use strict';
-  const FONT = '"Snell Roundhand","Apple Chancery","Kaiti SC","STKaiti","Songti SC","Noto Serif SC",cursive';
+  const FALLBACK = {face: '"Snell Roundhand","Apple Chancery","Kaiti SC","STKaiti","Songti SC","Noto Serif SC",cursive', weight: 700};
   // Pen-up moves cost a fifth of their length on the clock: a quick hop, not a pause.
   const SIZE = 200, LIFT = .2, cache = new Map();
 
-  function rasterise(phrase) {
+  /** One or more lines, centred on each other, as a coverage mask. */
+  function rasterise(lines, face) {
     const c = document.createElement('canvas'), g = c.getContext('2d', {willReadFrequently: true});
-    const font = `700 ${SIZE}px ${FONT}`;
+    const font = `${face.weight} ${SIZE}px ${face.face}`;
     g.font = font;
-    const m = g.measureText(phrase), pad = 24;
-    const left = Math.ceil(m.actualBoundingBoxLeft || 0), ascent = Math.ceil(m.actualBoundingBoxAscent || SIZE * .8);
-    const w = Math.max(8, Math.ceil(left + (m.actualBoundingBoxRight || m.width)) + pad * 2);
-    const h = Math.max(8, Math.ceil(ascent + (m.actualBoundingBoxDescent || SIZE * .3)) + pad * 2);
+    const metrics = lines.map(line => g.measureText(line)), pad = 24, gap = SIZE * .22;
+    const box = metrics.map(m => ({left: Math.ceil(m.actualBoundingBoxLeft || 0), right: Math.ceil(m.actualBoundingBoxRight || m.width),
+      ascent: Math.ceil(m.actualBoundingBoxAscent || SIZE * .8), descent: Math.ceil(m.actualBoundingBoxDescent || SIZE * .3)}));
+    const width = Math.max(...box.map(b => b.left + b.right));
+    const w = Math.max(8, width + pad * 2), h = Math.max(8, Math.ceil(box.reduce((n, b) => n + b.ascent + b.descent, 0) + gap * (lines.length - 1)) + pad * 2);
     c.width = w; c.height = h;
     g.font = font; g.fillStyle = '#000'; g.textBaseline = 'alphabetic';
-    g.fillText(phrase, pad + left, pad + ascent);
+    let y = pad;
+    lines.forEach((line, i) => { const b = box[i]; y += b.ascent; g.fillText(line, pad + (width - b.left - b.right) / 2 + b.left, y); y += b.descent + gap; });
     const rgba = g.getImageData(0, 0, w, h).data, img = new Uint8Array(w * h);
     for (let i = 0; i < img.length; i++) img[i] = rgba[i * 4 + 3] > 100 ? 1 : 0;
     return {img, w, h};
@@ -148,7 +151,7 @@ window.WelcomeHandwriting = (() => {
   }
 
   /** Smooth each pen-down run, map into the stage and resample every 2 px. */
-  function resample(strokes, w, h) {
+  function resample(strokes, w, h, fit) {
     const runs = [];
     for (const s of strokes) {
       if (s.lift || !runs.length) runs.push([]);
@@ -163,8 +166,9 @@ window.WelcomeHandwriting = (() => {
     const smoothed = runs.map(smoothRun);
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const r of smoothed) for (const p of r) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
-    // Same stage box as the authored lettering: centred on x 958, y 570.
-    const k = Math.min(1316 / Math.max(1, maxX - minX), 300 / Math.max(1, maxY - minY), 1.25);
+    // Same stage box as the authored lettering, centred on x 958, y 570; two
+    // lines get a taller, narrower box. `fit.size` is the text-size option.
+    const k = Math.min(fit.width / Math.max(1, maxX - minX), fit.height / Math.max(1, maxY - minY), 1.25) * fit.size;
     const map = p => ({x: 958 + (p.x - (minX + maxX) / 2) * k, y: 570 + (p.y - (minY + maxY) / 2) * k});
     const out = [];
     let l = 0;
@@ -187,13 +191,17 @@ window.WelcomeHandwriting = (() => {
     return out;
   }
 
-  function trace(phrase) {
-    if (cache.has(phrase)) return cache.get(phrase);
-    const {img, w, h} = rasterise(phrase);
+  /** `lines`: one or two strings. `face`: {face, weight} from style.js. */
+  function trace(lines, face = FALLBACK, size = 1) {
+    lines = (Array.isArray(lines) ? lines : [lines]).filter(Boolean);
+    const key = JSON.stringify([lines, face.face, face.weight, size]);
+    if (cache.has(key)) return cache.get(key);
+    const {img, w, h} = rasterise(lines, face);
     thin(img, w, h);
     const strokes = journey(prune(edges(graph(img, w, h), w), SIZE * .05));
-    const points = strokes.length ? resample(strokes, w, h) : [{x: 958, y: 570, l: 0, lift: false}, {x: 960, y: 570, l: 2, lift: false}];
-    cache.set(phrase, points);
+    const fit = lines.length > 1 ? {width: 1180, height: 430, size} : {width: 1316, height: 300, size};
+    const points = strokes.length ? resample(strokes, w, h, fit) : [{x: 958, y: 570, l: 0, lift: false}, {x: 960, y: 570, l: 2, lift: false}];
+    cache.set(key, points);
     return points;
   }
   return {trace};

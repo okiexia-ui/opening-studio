@@ -75,7 +75,8 @@ using any film or book title, logo, character, typeface, frame or music.
 ## System fonts used at runtime
 
 Custom handwritten greetings are traced from fonts already installed with
-macOS: Snell Roundhand, with Kaiti SC or Songti SC for Chinese. The Great Wall
+macOS: Snell Roundhand, Savoye LET or Bradley Hand for the script, handwriting
+and calligraphic choices, with Kaiti SC or Songti SC for Chinese. The Great Wall
 Pass and Planetary Voyage text also uses installed Songti SC and Menlo. These
 fonts are rendered on the user's Mac and are not redistributed with this
 project.

@@ -7,32 +7,36 @@
   const params = new URLSearchParams(location.search), FIELDS = ['greeting', 'name', 'title', 'seal'];
   const examples = [
     {bundleID: 'com.openai.codex', name: 'ChatGPT', theme: 'frost', mark: 'openai', enabled: true},
-    {bundleID: 'com.anthropic.claudefordesktop', name: 'Claude', theme: 'cinnabar', mark: 'claude', enabled: true},
-    {bundleID: 'generic', name: '其他应用', theme: 'midnight', mark: 'portal', enabled: false},
+    {bundleID: 'com.anthropic.claudefordesktop', name: 'Claude', theme: 'ink', mark: 'claude', enabled: true},
+    {bundleID: 'generic', name: '其他应用', theme: 'aurora', mark: 'portal', enabled: false},
   ];
   let renderer, selected, profile, profiles = [], playing = false, start = 0, frame = null, t = 0;
   let savedCopy = WelcomeFilm.normalizeCopy(Object.fromEntries(FIELDS.map(k => [k, params.get(k)])));
   let copy = savedCopy, copyTimer = null, editRevision = 0, submittedRevision = -1;
   const thumbs = [];
   const sameCopy = (a, b) => FIELDS.every(k => a[k] === b[k]);
+  // Saved options per style (only what differs from defaults), and unsaved drafts.
+  let styles = {}, styleTimer = null;
+  const drafts = {}, same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const styleFor = id => drafts[id] ? WelcomeStyle.delta(drafts[id]) : styles[id] || {};
 
   function stop() { playing = false; cancelAnimationFrame(frame); $('play').textContent = '▶'; $('play').setAttribute('aria-label', '播放动画'); }
-  function update() { renderer.at(t); $('seek').value = t; $('time').textContent = `${t.toFixed(1).padStart(4, '0')} / ${selected.duration.toFixed(1)}`; }
+  function update() { t = Math.min(t, renderer.duration); renderer.at(t); $('seek').value = t; $('time').textContent = `${t.toFixed(1).padStart(4, '0')} / ${renderer.duration.toFixed(1)}`; }
   function makeRenderer() {
     renderer?.dispose();
-    renderer = WelcomeFilm.create($('stage'), {theme: selected.id, mark: profile?.mark, icon: profile?.icon, copy});
+    renderer = WelcomeFilm.create($('stage'), {theme: selected.id, mark: profile?.mark, icon: profile?.icon, copy, style: styleFor(selected.id)});
+    $('seek').max = renderer.duration;
   }
-  function paintThumbs() {
-    for (const x of thumbs) {
-      x.painter?.dispose();
-      x.painter = WelcomeFilm.create(x.canvas, {theme: x.theme.id, mark: profile.mark, icon: profile.icon, copy});
-      x.painter.at(x.theme.posterTime);
-    }
+  function paintThumb(x) {
+    x.painter?.dispose();
+    x.painter = WelcomeFilm.create(x.canvas, {theme: x.theme.id, mark: profile.mark, icon: profile.icon, copy, style: styleFor(x.theme.id)});
+    x.painter.at(x.theme.posterTime * x.painter.duration / x.theme.duration);
   }
+  function paintThumbs() { thumbs.forEach(paintThumb); }
   function choose(id) {
     stop();
-    selected = WelcomeThemes.find(x => x.id === id) || WelcomeThemes[0];
-    makeRenderer(); t = selected.posterTime; $('seek').max = selected.duration;
+    selected = WelcomeStyle.theme(id);
+    makeRenderer(); t = selected.posterTime * renderer.duration / selected.duration; showStyle();
     $('number').textContent = String(WelcomeThemes.indexOf(selected) + 1).padStart(2, '0');
     for (const k of ['name', 'english', 'description', 'motif']) $(k).textContent = selected[k];
     document.querySelectorAll('.choice').forEach(b => b.setAttribute('aria-pressed', b.dataset.theme === selected.id ? 'true' : 'false'));
@@ -53,10 +57,10 @@
   }
   function play(restart = false) {
     if (playing) { stop(); return; }
-    if (restart || t >= selected.duration) t = 0;
+    if (restart || t >= renderer.duration) t = 0;
     playing = true; start = performance.now() - t * 1000;
     $('play').textContent = 'Ⅱ'; $('play').setAttribute('aria-label', '暂停动画');
-    const tick = now => { t = Math.min(selected.duration, (now - start) / 1000); update(); if (t < selected.duration) frame = requestAnimationFrame(tick); else stop(); };
+    const tick = now => { t = Math.min(renderer.duration, (now - start) / 1000); update(); if (t < renderer.duration) frame = requestAnimationFrame(tick); else stop(); };
     frame = requestAnimationFrame(tick);
   }
 
@@ -104,6 +108,74 @@
     }
   };
 
+  /* ---- style editor: palettes, accent, pace, font, layout, size, elements ---- */
+  const draftOf = id => drafts[id] || WelcomeStyle.normalize(id, styles[id]);
+  const swatchColors = palette => Object.values(palette.colors).flatMap(v => Array.isArray(v) ? [v[0], v[Math.floor(v.length / 2)]] : [v])
+    .map(v => v.startsWith('#') ? v : `rgb(${v})`).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4);
+  function segmented(container, options, value, onPick) {
+    container.replaceChildren(...options.map(([id, name]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = name; b.dataset.value = id;
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(id === value)); b.addEventListener('click', () => onPick(id)); return b;
+    }));
+  }
+  function styleState() {
+    const id = selected.id, dirty = !!drafts[id] && !same(WelcomeStyle.delta(drafts[id]), styles[id] || {});
+    $('style-save').disabled = !dirty;
+    $('style-note').textContent = !bridge ? '浏览器内只预览；在“应用与开屏…”中保存。' : dirty ? '此样式有未保存的修改。' : '保存后，所有使用此样式的应用都会生效。';
+  }
+  function editStyle(change) {
+    const id = selected.id, next = structuredClone(draftOf(id));
+    change(next);
+    drafts[id] = WelcomeStyle.normalize(id, next);
+    showStyle();
+    clearTimeout(styleTimer);
+    styleTimer = setTimeout(() => { const keep = t / renderer.duration; makeRenderer(); t = keep * renderer.duration; update(); paintThumb(thumbs.find(x => x.theme.id === id)); }, 120);
+  }
+  function showStyle() {
+    const theme = selected, d = draftOf(theme.id);
+    $('style-title').textContent = `定制 · ${theme.name}`;
+    $('palettes').replaceChildren(...theme.palettes.map(p => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'swatch'; b.dataset.value = p.id;
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(p.id === d.palette));
+      const colors = swatchColors(p); b.innerHTML = '<i></i><span></span>';
+      b.querySelector('i').style.background = `linear-gradient(90deg,${colors.join(',')})`; b.querySelector('span').textContent = p.name;
+      b.addEventListener('click', () => editStyle(n => { n.palette = p.id; n.accent = null; }));
+      return b;
+    }));
+    const role = WelcomeStyle.resolve(theme.id, {palette: d.palette}).colors[theme.accentRole];
+    $('accent').value = d.accent || (Array.isArray(role) ? role[3] : role.startsWith('#') ? role : '#' + role.split(',').map(v => (+v).toString(16).padStart(2, '0')).join(''));
+    $('accent-clear').hidden = !d.accent;
+    segmented($('pace'), Object.entries(WelcomeStyle.PACES).map(([id, v]) => [id, v.name]), d.pace, id => editStyle(n => { n.pace = id; }));
+    $('font').replaceChildren(...theme.fonts.map(id => { const o = document.createElement('option'); o.value = id; o.textContent = WelcomeStyle.FONTS[id].name; return o; }));
+    $('font').value = d.font;
+    segmented($('layout'), theme.layouts.map(id => [id, WelcomeStyle.LAYOUTS[id].name]), d.layout, id => editStyle(n => { n.layout = id; }));
+    $('layout').closest('.style-group').querySelector('.group-label').hidden = $('layout').hidden = theme.layouts.length < 2;
+    $('size').value = d.size; $('size-value').textContent = `${Math.round(d.size * 100)}%`;
+    $('elements').replaceChildren(...theme.elements.map(e => {
+      const label = document.createElement('label'), input = document.createElement('input'), name = document.createElement('span');
+      label.className = `element ${e.kind}`; name.textContent = e.name; input.dataset.element = e.id;
+      if (e.kind === 'toggle') { input.type = 'checkbox'; input.checked = !!d.elements[e.id]; input.addEventListener('change', () => editStyle(n => { n.elements[e.id] = input.checked ? 1 : 0; })); label.append(input, name); }
+      else { input.type = 'range'; input.min = 0; input.max = 1; input.step = .05; input.value = d.elements[e.id]; input.addEventListener('input', () => editStyle(n => { n.elements[e.id] = +input.value; })); label.append(name, input); }
+      return label;
+    }));
+    styleState();
+  }
+  $('accent').addEventListener('input', () => editStyle(n => { n.accent = $('accent').value; }));
+  $('accent-clear').addEventListener('click', () => editStyle(n => { n.accent = null; }));
+  $('font').addEventListener('change', () => editStyle(n => { n.font = $('font').value; }));
+  $('size').addEventListener('input', () => editStyle(n => { n.size = +$('size').value; }));
+  $('style-reset').addEventListener('click', () => editStyle(n => Object.assign(n, WelcomeStyle.normalize(selected.id, {}))));
+  $('style-save').hidden = !bridge;
+  $('style-save').addEventListener('click', () => {
+    $('style-note').textContent = '正在保存…';
+    bridge.postMessage({event: 'style', theme: selected.id, options: WelcomeStyle.delta(draftOf(selected.id))});
+  });
+  window.didSaveStyle = ({theme, options}) => {
+    styles[theme] = options || {};
+    if (drafts[theme] && same(WelcomeStyle.delta(drafts[theme]), styles[theme])) delete drafts[theme];
+    if (selected.id === theme) { styleState(); $('style-note').textContent = '此样式已保存。'; }
+  };
+
   /* ---- styles and apps ---- */
   for (const [index, theme] of WelcomeThemes.entries()) {
     const button = document.createElement('button');
@@ -147,6 +219,10 @@
       if (selected.id !== profile.theme) draft.theme = selected.id;
       if ($('profile-enabled').checked !== profile.enabled) draft.enabled = $('profile-enabled').checked;
     }
+    if (data.styles) {
+      styles = Object.fromEntries(Object.entries(data.styles).map(([id, o]) => [WelcomeStyle.theme(id).id, o]));
+      for (const id of Object.keys(drafts)) if (same(WelcomeStyle.delta(drafts[id]), styles[id] || {})) delete drafts[id];
+    }
     profiles = data.profiles?.length ? data.profiles : examples;
     $('target-app').replaceChildren(...profiles.map(p => { const option = document.createElement('option'); option.value = p.bundleID; option.textContent = p.name; return option; }));
     chooseApp(data.selectedID || profiles[0].bundleID, draft, copyChanged);
@@ -156,7 +232,7 @@
   showCopy(copy);
   window.updateOpeningProfiles(window.OPENING_PROFILES || {profiles: examples, selectedID: params.get('app') || 'com.openai.codex'});
   if (params.get('theme')) choose(params.get('theme'));
-  window.addEventListener('resize', () => { update(); thumbs.forEach(x => x.painter.at(x.theme.posterTime)); });
+  window.addEventListener('resize', () => { update(); thumbs.forEach(x => x.painter.at(x.theme.posterTime * x.painter.duration / x.theme.duration)); });
   window.galleryReady = true;
   bridge?.postMessage({event: 'ready'});
 })();

@@ -127,7 +127,7 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         }
     }
     func rendererConfig(_ profile:AppProfile)->[String:Any] {
-        var result:[String:Any]=["theme":profile.theme,"mark":profile.mark,"appName":profile.name,"copy":store.greeting.dictionary]
+        var result:[String:Any]=["theme":profile.theme,"mark":profile.mark,"appName":profile.name,"copy":store.greeting.dictionary,"style":store.style(profile.theme)]
         if profile.mark=="portal" {
             if icons[profile.bundleID] == nil {icons[profile.bundleID]=appIconData(profile)}
             result["icon"]=icons[profile.bundleID] ?? ""
@@ -135,7 +135,7 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         return result
     }
     func settingsPayload()->[String:Any] {
-        ["selectedID":store.document.selectedID,"copy":store.greeting.dictionary,"copyDefaults":Greeting.standard.dictionary,"copyLimits":Greeting.limits,"profiles":store.document.profiles.map{p -> [String:Any] in
+        ["selectedID":store.document.selectedID,"styles":store.styles,"copy":store.greeting.dictionary,"copyDefaults":Greeting.standard.dictionary,"copyLimits":Greeting.limits,"profiles":store.document.profiles.map{p -> [String:Any] in
             var row=rendererConfig(p);row["bundleID"]=p.bundleID;row["name"]=p.name;row["enabled"]=p.enabled;row["installed"]=p.applicationURL != nil;return row
         }]
     }
@@ -244,8 +244,8 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
         prepareMenu();syncSettings();prewarm()
     }
     @objc func themeClicked(_ item:NSMenuItem) {if let id=item.representedObject as? String {selectTheme(id)}}
-    func selectTheme(_ theme:String) {
-        guard openingThemes[theme] != nil else{return}
+    func selectTheme(_ requested:String) {
+        guard let theme=currentTheme(requested) else{return}
         var p=store.selected;p.theme=theme
         guard persist({$0.update(p)}) else{return}
         prepareMenu();syncSettings();prewarm()
@@ -423,8 +423,16 @@ final class Companion: NSObject, NSApplicationDelegate, WKScriptMessageHandler, 
                 prewarm()
                 settingsWeb?.evaluateJavaScript("window.didSaveCopy(\(javascriptJSON(next.dictionary)))")
                 log("greeting_saved",["custom":next != .standard])
+            case "style":
+                // Per-style options, shared by every app using that style. Empty means defaults.
+                guard let theme=currentTheme(body["theme"] as? String) else{return}
+                let options=StyleOptions(fields:body["options"] as? [String:Any] ?? [:])
+                guard persist(field:"style", {var all=$0.styles ?? [:];all[theme]=options.isEmpty ? nil:options;$0.styles=all.isEmpty ? nil:all}) else{return}
+                prewarm()
+                settingsWeb?.evaluateJavaScript("window.didSaveStyle(\(javascriptJSON(["theme":theme,"options":options.dictionary])))")
+                log("style_saved",["theme":theme,"custom":!options.isEmpty])
             case "apply":
-                guard let id=body["bundleID"] as? String,var p=store.profile(id),let theme=body["theme"] as? String,openingThemes[theme] != nil else{return}
+                guard let id=body["bundleID"] as? String,var p=store.profile(id),let theme=currentTheme(body["theme"] as? String) else{return}
                 p.theme=theme;p.enabled=body["enabled"] as? Bool ?? p.enabled
                 guard persist({$0.update(p);$0.selectedID=id}) else{return}
                 prepareMenu();prewarm()
@@ -505,7 +513,15 @@ func runSelfTest() {
         do {try unreadable.commit {$0.selectedID=b.bundleID};preconditionFailure("invalid document replaced")} catch {}
         precondition(unreadable.selected.bundleID==a.bundleID && (try! Data(contentsOf:url))==invalid)
     }
-    print("PASS: launch gate, profile isolation, app marks, window selection, greeting storage, failed save rollback and file preservation")
+    // Retired styles move forward; style options keep only a safe shape.
+    precondition(currentTheme("cinnabar")=="ink" && currentTheme("aurum")=="terminal" && currentTheme("frost")=="frost" && currentTheme("nope")==nil && currentTheme(nil)==nil)
+    let options=StyleOptions(fields:["palette":"jade","accent":"#ABCDEF","pace":"Calm!","font":"kai","size":9,"elements":["wall":0,"bad key":1,"mist":1.7],"extra":"x"])
+    precondition(options.palette=="jade" && options.accent=="#abcdef" && options.pace==nil && options.size==1.25 && options.elements==["wall":0,"mist":1])
+    precondition(StyleOptions(fields:["accent":"red","size":"big"]).isEmpty)
+    let styled=try! JSONDecoder().decode(ProfileDocument.self,from:Data(#"{"version":1,"selectedID":"a","profiles":[{"bundleID":"a","name":"A","theme":"cinnabar","enabled":true}],"styles":{"ink":{"palette":"night","size":"huge","elements":{"boat":0}}}}"#.utf8))
+    precondition(styled.styles?["ink"]?.palette=="night" && styled.styles?["ink"]?.size==nil && styled.styles?["ink"]?.elements==["boat":0])
+
+    print("PASS: launch gate, profile isolation, app marks, window selection, greeting storage, failed save rollback, file preservation, style options and theme migration")
 }
 if CommandLine.arguments.contains("--self-test") {runSelfTest();exit(0)}
 let notificationScope=argument("--profiles").map{"test-"+URL(fileURLWithPath:$0).lastPathComponent} ?? argument("--target") ?? "com.openai.codex"
@@ -521,13 +537,13 @@ if !CommandLine.arguments.contains("--preview") {
     singletonFD=Darwin.open("/private/tmp/local.tommy.welcome-companion-\(getuid())-\(scope).lock",O_CREAT|O_RDWR,mode_t(0o600))
     if singletonFD<0 || flock(singletonFD,LOCK_EX|LOCK_NB) != 0 {
         if CommandLine.arguments.contains("--settings") {DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.tommy.welcome.show-settings"),object:notificationScope,userInfo:nil,deliverImmediately:true)}
-        if let theme=argument("--theme"),openingThemes[theme] != nil {DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.tommy.welcome.set-theme"),object:notificationScope,userInfo:["theme":theme],deliverImmediately:true)}
+        if let theme=argument("--theme"),currentTheme(theme) != nil {DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.tommy.welcome.set-theme"),object:notificationScope,userInfo:["theme":theme],deliverImmediately:true)}
         print("Opening Studio is already observing applications.");exit(0)
     }
 }
 let store:ProfileStore
 if let target=argument("--target"),argument("--profiles")==nil {
-    store=ProfileStore(url:nil,fallback:[AppProfile(bundleID:target,name:target,theme:argument("--theme") ?? "frost",enabled:true)])
+    store=ProfileStore(url:nil,fallback:[AppProfile(bundleID:target,name:target,theme:currentTheme(argument("--theme")) ?? "frost",enabled:true)])
 } else {
     let config=argument("--profiles").map{URL(fileURLWithPath:$0)} ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/WelcomeTommy/profiles.json")
     store=ProfileStore(url:config,fallback:ProfileStore.defaults())

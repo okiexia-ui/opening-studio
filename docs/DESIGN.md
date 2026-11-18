@@ -55,3 +55,22 @@ the nearest loose end behind it. Pen-up moves cost a fifth of their length on
 the clock and are never drawn. The result is fitted to the same stage box as
 the authored lettering, so the connector, mark and aperture are unchanged.
 
+## Redesign: keep the strongest, replace the rest
+
+Frosted Script, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain
+each have a scene and an idea of their own, so they stay. Cinnabar Folio,
+Midnight Orbit and Aurum Theatre were a line of type on a coloured ground with
+little motion of their own; they are replaced, each by a style that continues
+its colour family:
+
+| Theme | Idea | Motion | Duration |
+| --- | --- | --- | --- |
+| Ink Landscape (replaces Cinnabar) | A hanging-scroll composition: distant soft peaks, a massif on each side with pines and dry-brush texture, open water | Ink drops diffuse into the mountain layers; a boat drifts; a broad nib writes the greeting in the empty sky (width follows the nib angle and tapers at every lift); a name seal is pressed; one brush line runs into the mark | 12.4 s |
+| Aurora Field (replaces Midnight) | Night over an ice field | Additive curtain columns sway with travelling rays; their light lies on the ice; letters condense one by one; a strand of light pours from the right-hand curtain into the mark | 12.0 s |
+| Phosphor Terminal (replaces Aurum) | An old CRT, amber by default | Warm-up line, typed boot log ending in a greeting command, block-cursor typing, then an oscilloscope beam with phosphor persistence draws the mark | 11.4 s |
+
+Customisation is part of each style's design, not a filter on top: every style
+declares its palettes (and which colour a custom accent replaces), fonts,
+layouts and scene elements in `film/assets/themes.js`, and its stage reads them.
+Pace stretches the shared 0–15.8 clock, so the native aperture mask and window
+handoff stay in step at any speed. Defaults reproduce the reviewed designs.

@@ -7,4 +7,4 @@ if [[ -f "$TASK_PLIST" ]]; then
   mkdir -p "$HOME/Library/Application Support/WelcomeTommy"
   mv "$TASK_PLIST" "$HOME/Library/Application Support/WelcomeTommy/disabled-launch-agent.plist"
 fi
-print '开场动画已关闭。ChatGPT 应用不受影响。'
+print '开场动画已关闭，目标应用不受影响。运行“重新启用开场动画”可恢复。'

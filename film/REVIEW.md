@@ -74,3 +74,41 @@ Native lifecycle tests now exercise two apps, independent themes, a disabled
 profile, persisted settings and restart seeding. No real user's application
 was forcibly quit. A source release does not imply every target app or Spaces
 configuration has been manually verified.
+
+
+## v0.3 additional styles
+
+Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain were reviewed
+as nine-beat contact sheets at 1920×1080, as tall 500×900 windows, and with
+the Claude and portal marks. The review fixed:
+
+- a wall that unrolled through off-screen padding before appearing;
+- unlit candle sticks shown before ignition;
+- a telemetry placeholder that overwrote the word VELOCITY;
+- star streaks long enough to read as rain;
+- IGNITION overlapping the greeting wipe;
+- a puddle reflection crisp enough to read as a second sign.
+
+Software-rendered frame cost was profiled per draw call. Full-window gradients,
+per-glow gradients, the fibre texture under the tunnel clip and full-density
+glow polylines were replaced with one folded gradient, cached glow sprites, a
+pattern tile and decimated glow strokes. Each new style now costs no more than
+Frosted Script. All eight themes pass the motion, transparent-exit, mark and
+viewport checks. HyperFrames reports no errors or warnings for the new variants.
+
+Weakest shots: the government seal is small at thumbnail scale, and the neon
+reflection is a squashed mirror rather than a true rippled surface.
+
+## Custom greetings
+
+The tracer was reviewed on Welcome Tommy (against the authored path), Hello Ada,
+Welcome Maximilian, 你好 小明 and Bonjour Zoë. Reviewing the stroke-order plots
+led to three fixes: quicker pen-up hops, finishing strokes behind the pen first,
+and keeping diacritic dots that thin to a single pixel. All eight themes are
+tested with two custom greetings at 1920×1080 and 320×1200 for continuity,
+motion, stage fit and a transparent exit. Defaults stay byte-identical to the
+previous posters.
+
+Weakest result: Chinese stroke order follows the skeleton, not calligraphic
+order, so characters build up legibly but not as a person would write them.
+

@@ -8,9 +8,9 @@ if [[ -f "$TASK_BASE/disabled-launch-agent.plist" ]]; then
   mv "$TASK_BASE/disabled-launch-agent.plist" "$TASK_AGENT"
 fi
 if [[ ! -f "$TASK_AGENT" ]]; then
-  print '请从项目 scripts/install.py 安装开场伴随程序。'
+  print '尚未安装，请先运行“安装 Opening Studio”。'
   exit 1
 fi
 launchctl bootstrap "gui/$(id -u)" "$TASK_AGENT" 2>/dev/null || true
 launchctl kickstart "gui/$(id -u)/$TASK_LABEL"
-print '已启用：下次完整退出 ChatGPT 后重新打开时播放。'
+print '已启用：完整退出目标应用后重新打开时播放。'

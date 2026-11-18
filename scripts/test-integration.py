@@ -35,13 +35,28 @@ def stop_observer():
   try:proc.wait(timeout=5)
   except subprocess.TimeoutExpired:proc.kill();proc.wait()
   proc=None
-def launch(i):subprocess.run(['open',str(fixtures[i])],check=True)
+def launch(i,background=False,delayed=False):
+ prior=sum(e['event']=='cold_launch_detected' and e['target']==ids[i] for e in events())
+ args=['open']+(['-g'] if background else [])+[str(fixtures[i])]
+ if background or delayed:
+  flag='--background-fixture' if background else '--delayed-fixture'
+  args+=['--args',flag]
+ subprocess.run(args,check=True)
+ if i not in pids:pids[i]=wait_for('cold_launch_detected',ids[i],count=prior+1)['pid']
 def close(i):
  if i in pids:
   try:os.kill(pids.pop(i),signal.SIGTERM)
   except ProcessLookupError:pass
 try:
- start_observer();launch(0);a=wait_for('animation_started',ids[0]);pids[0]=a['pid'];assert a['theme']=='cinnabar' and a['duration']==11.8
+ start_observer()
+ launch(0,background=True);pids[0]=wait_for('cold_launch_detected',ids[0])['pid']
+ assert wait_for('launch_skipped',ids[0])['reason']=='background_launch'
+ assert not any(e['event']=='animation_started' for e in events()), 'background launch covered the foreground app'
+ launch(0);wait_for('activation_no_replay',ids[0]);time.sleep(.3)
+ assert not any(e['event']=='animation_started' for e in events()), 'switching to a resident app replayed its opening'
+ close(0);wait_for('target_terminated',ids[0])
+ print('PASS: background cold launch and later foreground activation stay silent',flush=True)
+ launch(0,delayed=True);a=wait_for('animation_started',ids[0]);pids[0]=a['pid'];assert a['theme']=='cinnabar' and a['duration']==11.8
  wait_for('animation_visible',ids[0]);time.sleep(.5);os.kill(pids[0],signal.SIGUSR1);wait_for('window_followed',ids[0])
  first_finish=wait_for('animation_finished',ids[0]);assert first_finish['reason'] in {'completed','user_switched_app'}, first_finish
  if first_finish['reason']=='user_switched_app':print('User switched apps: verified prompt cancellation instead of natural completion',flush=True)
@@ -57,16 +72,21 @@ try:
  assert len([e for e in events() if e['event']=='animation_started'])==1
  print('PASS: disabled profile, independent persistence, existing app ignored after observer restart',flush=True)
  launch(1);b=wait_for('animation_started',ids[1]);pids[1]=b['pid'];assert b['theme']=='aurum' and b['duration']==12.2
- wait_for('animation_visible',ids[1]);close(0);wait_for('target_terminated',ids[0]);launch(0)
+ wait_for('animation_visible',ids[1]);close(0);wait_for('target_terminated',ids[0],count=2);launch(0)
  a2=wait_for('animation_started',ids[0],count=2);pids[0]=a2['pid'];wait_for('animation_visible',ids[0],count=2)
  assert a2['theme']=='cinnabar'
  running=None
  for e in events():
   if e['event']=='animation_started':assert running is None, 'overlapping playback';running=e['target']
   elif e['event']=='animation_finished':assert e['target']==running;running=None
- close(0);close(1);wait_for('target_terminated',ids[0],count=2)
+ os.kill(pids[0],signal.SIGHUP);lost=wait_for('animation_finished',ids[0],count=2,timeout=3)
+ assert lost['reason'] in {'window_unavailable','user_switched_app'},lost
+ launch(0);time.sleep(.4)
+ assert sum(e['event']=='animation_started' and e['target']==ids[0] for e in events())==2
+ close(0);close(1);wait_for('target_terminated',ids[0],count=3)
+ print('PASS: closing the target window dismisses the overlay; reopening stays silent',flush=True)
  print('PASS: second app uses its own theme; overlapping launch supersedes; quit/relaunch replays',flush=True)
- (work/'integration-result-v03.json').write_text(json.dumps({'ok':True,'firstPlaybackFinish':first_finish['reason'],'checks':['cold launch','resize','visible playback','completion or real-user cancellation','no activation replay','profile disabled','independent persisted themes','observer restart no replay','single overlay across apps','quit/relaunch'],'events':events()},indent=2))
+ (work/'integration-result-v03.json').write_text(json.dumps({'ok':True,'firstPlaybackFinish':first_finish['reason'],'checks':['background launch ignored','return after background launch','cold launch','resize','visible playback','completion or real-user cancellation','no activation replay','window closed','profile disabled','independent persisted themes','observer restart no replay','single overlay across apps','quit/relaunch'],'events':events()},indent=2))
 finally:
  for i in list(pids):close(i)
  stop_observer()

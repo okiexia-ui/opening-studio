@@ -1,4 +1,5 @@
-"""Build allowlisted, portable GitHub assets without publishing anything."""
+"""Build portable GitHub assets without publishing anything."""
+import argparse
 import hashlib
 import json
 import pathlib
@@ -11,6 +12,17 @@ VERSION = json.loads((ROOT / 'package.json').read_text())['version']
 OUT = ROOT / 'release'
 STAGE = OUT / 'staging'
 PREFIX = f'OpeningStudio-v{VERSION}'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--require-demos', action='store_true', help='require the complete MP4 release set')
+options = parser.parse_args()
+demo_titles = ['Welcome Tommy', 'Cinnabar Folio', 'Midnight Orbit', 'Aurum Theatre',
+               'Great Wall Pass', 'Candlelit Spell', 'Planetary Voyage', 'Neon Rain', 'Claude Cinnabar']
+videos = [ROOT / 'delivery' / (title + '.mp4') for title in demo_titles]
+missing = [p.name for p in videos if not p.is_file()]
+if missing:
+    if options.require_demos or len(missing) != len(videos):
+        raise SystemExit('Incomplete demo set: ' + ', '.join(missing))
+    videos = []
 OUT.mkdir(exist_ok=True)
 STAGE.mkdir(exist_ok=True)
 manifest = {'version': VERSION, 'artifacts': [], 'published': False}
@@ -70,11 +82,10 @@ architectures = subprocess.check_output(['lipo', '-archs', str(app / 'Contents/M
 if not {'arm64', 'x86_64'}.issubset(architectures):
     raise SystemExit('Universal release requires: zsh scripts/build-native.sh --universal')
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
-binary_stage = stage(PREFIX, common + files(['scripts/install.py']))
+binary_stage = stage(PREFIX, common + files(['scripts/install.sh']))
 shutil.copytree(app, binary_stage / 'delivery/Welcome Tommy.app')
 archive(binary_stage, 'macos-universal')
 
-videos = files(['delivery/*.mp4'])
 if videos:
     demo_stage = stage(PREFIX + '-demos', videos + files(['LICENSE', 'THIRD_PARTY_NOTICES.md', 'docs/RELEASE_NOTES.md']))
     # Rendered font outlines retain their attribution with the demos.

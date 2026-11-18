@@ -13,12 +13,13 @@ python3 scripts/make-variants.py
 npm run check
 zsh scripts/build-native.sh --universal
 python3 scripts/test-integration.py
-python3 scripts/package-release.py
+python3 scripts/test-install.py
+python3 scripts/package-release.py --require-demos
 ```
 
 The package script allowlists sources, preserves command executability,
-excludes local caches/logs and creates SHA-256 checksums. MP4 demos are
-included when present. `release/manifest.json` records artifact contents.
+excludes local caches/logs and creates SHA-256 checksums. A release with demos requires all eight styles plus the Claude example. CI
+can build the app and source archives from a clean checkout without rendered MP4s. `release/manifest.json` records artifact contents.
 GitHub Actions builds and uploads archives; it does not publish a release.
 
 ## Publish when a repository has been chosen

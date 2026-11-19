@@ -64,7 +64,7 @@ sources = files(['.gitignore', '.github/workflows/*.yml', 'package.json', 'packa
                  'film/index.html', 'film/native.html', 'film/gallery.html',
                  'film/package.json', 'film/SPEC.md', 'film/STORYBOARD.md', 'film/REVIEW.md',
                  'film/compositions/welcome.html', 'film/assets/*.js', 'film/assets/*.css',
-                 'film/assets/*.svg', 'film/assets/photos/*.jpg', 'film/assets/SOURCES.md', 'film/assets/fonts/*'])
+                 'film/assets/*.svg', 'film/assets/SOURCES.md', 'film/assets/fonts/*'])
 # GSAP is installed from the pinned dependency on npm ci, never vendored here.
 sources = [p for p in sources if p.name != 'gsap.min.js']
 source_stage = stage(PREFIX + '-source', sorted(set(common + sources)))

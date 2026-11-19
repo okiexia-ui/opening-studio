@@ -12,6 +12,6 @@ svg-stroke-trace registry example. Runtime drawing is implemented locally.
 Optional video exports install GSAP from the pinned HyperFrames vendor bundle.
 Font sources and full license details are in ../../THIRD_PARTY_NOTICES.md.
 
-The native player decodes its selected theme’s JPEGs from the app bundle. The gallery and the offline exporter share those six source files. See the [photograph credits and usage terms](../../THIRD_PARTY_NOTICES.md#photographs).
+No remote calls or media are used during native playback.
 
 Claude asterisk: second path of the official Claude wordmark at https://claude.com/, retrieved 2026-11-17. Runtime app icons come from NSWorkspace and are never bundled in releases.

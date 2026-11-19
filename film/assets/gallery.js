@@ -233,12 +233,6 @@
   window.updateOpeningProfiles(window.OPENING_PROFILES || {profiles: examples, selectedID: params.get('app') || 'com.openai.codex'});
   if (params.get('theme')) choose(params.get('theme'));
   window.addEventListener('resize', () => { update(); thumbs.forEach(x => x.painter.at(x.theme.posterTime * x.painter.duration / x.theme.duration)); });
-  // Let people select an app or edit their greeting while the individual photos decode.
-  window.galleryPhotosReady = Promise.all(thumbs.filter(x => WelcomePhotos.shots[x.theme.id]).map(async x => {
-    await WelcomePhotos.load(x.theme.id);
-    x.painter.at(x.theme.posterTime * x.painter.duration / x.theme.duration);
-    if (selected.id === x.theme.id) update();
-  }));
   window.galleryReady = true;
   bridge?.postMessage({event: 'ready'});
 })();

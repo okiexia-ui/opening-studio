@@ -2,7 +2,7 @@
  * Inside the native settings window a `settings` message bridge saves choices;
  * opened as a plain page it is a preview only. */
 (async () => {
-  await Promise.all([WelcomePhotos.loadAll(), document.fonts.load('400 154px "Cormorant Garamond"'), document.fonts.load('300 122px Manrope')]);
+  await Promise.all([document.fonts.load('400 154px "Cormorant Garamond"'), document.fonts.load('300 122px Manrope')]);
   const $ = id => document.getElementById(id), bridge = window.webkit?.messageHandlers?.settings;
   const params = new URLSearchParams(location.search), FIELDS = ['greeting', 'name', 'title', 'seal'];
   const examples = [
@@ -233,6 +233,12 @@
   window.updateOpeningProfiles(window.OPENING_PROFILES || {profiles: examples, selectedID: params.get('app') || 'com.openai.codex'});
   if (params.get('theme')) choose(params.get('theme'));
   window.addEventListener('resize', () => { update(); thumbs.forEach(x => x.painter.at(x.theme.posterTime * x.painter.duration / x.theme.duration)); });
+  // Let people select an app or edit their greeting while the individual photos decode.
+  window.galleryPhotosReady = Promise.all(thumbs.filter(x => WelcomePhotos.shots[x.theme.id]).map(async x => {
+    await WelcomePhotos.load(x.theme.id);
+    x.painter.at(x.theme.posterTime * x.painter.duration / x.theme.duration);
+    if (selected.id === x.theme.id) update();
+  }));
   window.galleryReady = true;
   bridge?.postMessage({event: 'ready'});
 })();

@@ -33,5 +33,5 @@ window.WelcomePhotos = (() => {
     ctx.drawImage(image, (image.naturalWidth - sw) * focusX, (image.naturalHeight - sh) * focusY, sw, sh, box.left, box.top, w, h);
     ctx.restore();
   }
-  return {shots, load, loadAll: () => Promise.all(Object.keys(shots).map(load)), cover, get: id => decoded.get(id)};
+  return {shots, load, cover, get: id => decoded.get(id)};
 })();

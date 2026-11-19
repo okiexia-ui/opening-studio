@@ -3,7 +3,8 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
  const executablePath=require('./browser-path.cjs')();if(!executablePath)throw Error('Install Chrome or set HYPERFRAMES_BROWSER_PATH.');
  const browser=await puppeteer.launch({executablePath,headless:true});
  try {
-  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const errors=[],pageError=e=>{errors.push(e.message);console.error('Browser error:',e.message);};
+  let page=await browser.newPage();page.on('pageerror',pageError);
   // Give the browser local, same-origin resources so photographic pixels can be inspected.
   const origin='https://opening.test', root=path.resolve('film');
   const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.jpg':'image/jpeg','.woff2':'font/woff2','.ttf':'font/ttf','.svg':'image/svg+xml'};
@@ -129,7 +130,24 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
   });
   assert.deepStrictEqual(firstFrame,['started'],'A painted first frame must make the native panel visible without a display tick');
   // Exercise selection, keyboard scrubbing, playback and small-window layout.
-  await page.setViewport({width:1440,height:1080,deviceScaleFactor:1});await page.goto(origin+'/gallery.html');await page.waitForFunction('window.galleryReady');
+  // The companion opens its gallery as a separate file-backed WebView.
+  await page.close();page=await browser.newPage();page.on('pageerror',pageError);
+  const galleryURL=require('node:url').pathToFileURL(path.resolve('film/gallery.html')).href;
+  async function waitForGallery(){
+   try {await page.waitForFunction('window.galleryReady===true',{polling:100,timeout:60000});}
+   catch(error){throw Error('Gallery did not initialise: '+JSON.stringify({errors,dom:await page.evaluate(()=>({choices:document.querySelectorAll('.choice').length,fonts:document.fonts.status,photos:typeof WelcomePhotos,location:location.protocol}))}),{cause:error});}
+  }
+  // Simulate slow photo decoding: all controls must be ready before the files finish.
+  const slowDecode=await page.evaluateOnNewDocument(()=>{
+   const original=HTMLImageElement.prototype.decode, gate=new Promise(resolve=>{window.releasePhotoDecode=resolve;});
+   HTMLImageElement.prototype.decode=function(){return this.src.includes('/assets/photos/')?gate.then(()=>original.call(this)):original.call(this);};
+  });
+  await page.setViewport({width:1440,height:1080,deviceScaleFactor:1});await page.goto(galleryURL);await waitForGallery();
+  assert.equal(await page.$$eval('.choice',nodes=>nodes.length),themes.length);
+  assert.equal(await page.evaluate(()=>WelcomePhotos.get('voyage-apollo-earth')===undefined),true);
+  await page.evaluate(async()=>{releasePhotoDecode();await galleryPhotosReady;});
+  await page.removeScriptToEvaluateOnNewDocument(slowDecode.identifier);
+  assert(await page.evaluate(()=>Object.values(WelcomePhotos.shots).flat().every(id=>!!WelcomePhotos.get(id))),'All local gallery photos decoded');
   for(const theme of themes){await page.click(`[data-theme="${theme}"]`);assert.equal(await page.$eval(`[data-theme="${theme}"]`,el=>el.getAttribute('aria-pressed')),'true');}
   await page.click('[data-theme="ink"]');await page.screenshot({path:path.join(media,'gallery.png'),fullPage:true});
   await page.click('#replay');await page.waitForFunction('Number(document.getElementById("seek").value)>.2');await page.click('#play');assert.equal(await page.$eval('#play',el=>el.getAttribute('aria-label')),'播放动画');
@@ -137,7 +155,7 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
   await page.setViewport({width:520,height:900,deviceScaleFactor:1});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No narrow-screen horizontal overflow');
   // Exercise the native settings protocol with a local message-handler stub.
   await page.evaluateOnNewDocument(()=>{window.__settingsMessages=[];window.webkit={messageHandlers:{settings:{postMessage:m=>__settingsMessages.push(m)}}};});
-  await page.goto(origin+'/gallery.html');await page.waitForFunction('window.galleryReady');
+  await page.goto(galleryURL);await waitForGallery();await page.evaluate(()=>galleryPhotosReady);
   await page.select('#target-app','com.anthropic.claudefordesktop');await page.click('[data-theme="terminal"]');await page.click('#profile-enabled');await page.click('#apply');
   const saved=await page.evaluate(()=>__settingsMessages.findLast(x=>x.event==='apply'));assert.deepStrictEqual(saved,{event:'apply',bundleID:'com.anthropic.claudefordesktop',theme:'terminal',enabled:false});
   await page.evaluate(x=>didApplyTheme(x),saved);await page.select('#target-app','com.openai.codex');assert.equal(await page.$eval('[data-theme="frost"]',e=>e.getAttribute('aria-pressed')),'true');
@@ -174,7 +192,7 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
   assert.deepStrictEqual(race,['Aprilia','spell',true,false],'A delayed save or resync must preserve new edits');
   await page.$eval('#copy-name',input=>{input.value='😀'.repeat(17);input.dispatchEvent(new Event('input'));});
   assert.equal(await page.$eval('#copy-name',input=>Array.from(input.value).length),16,'Unicode length agrees with native storage');
-  await page.reload();await page.waitForFunction('window.galleryReady');await page.select('#target-app','com.anthropic.claudefordesktop');
+  await page.reload();await waitForGallery();await page.evaluate(()=>galleryPhotosReady);await page.select('#target-app','com.anthropic.claudefordesktop');
   await page.setViewport({width:1440,height:1080,deviceScaleFactor:1});await page.click('[data-theme="ink"]');await page.$eval('#profile-enabled',e=>e.checked=true);await page.screenshot({path:path.join(media,'apps-gallery.png'),fullPage:true});
   assert.deepStrictEqual(errors,[]);fs.writeFileSync('.build/renderer-validation-v03.json',JSON.stringify({ok:true,errors,results},null,2));
   console.log(JSON.stringify({ok:true,themes:themes.length,viewports:viewports.length,marks:3,checks:'motion, transparent exit, style options, migration, app/theme isolation, native protocol, cancellation, replay, seek, responsive layout',maxSubmissionMs:Math.max(...results.map(r=>r.frameMs))},null,2));

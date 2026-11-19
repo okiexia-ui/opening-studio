@@ -2,6 +2,8 @@
 set -euo pipefail
 cd "${0:A:h:h}"
 TASK_APP="$PWD/delivery/Welcome Tommy.app"
+# Start from an empty bundle so files dropped from the sources never linger in a build.
+rm -rf "$TASK_APP"
 mkdir -p "$TASK_APP/Contents/MacOS" "$TASK_APP/Contents/Resources/film/assets/fonts" .build/module-cache
 cat native/AppProfiles.swift native/WelcomeTommy.swift > .build/main.swift
 TASK_ARCHS=("$(uname -m)")

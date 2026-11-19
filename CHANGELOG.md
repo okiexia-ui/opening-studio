@@ -2,6 +2,7 @@
 
 ## 0.3.0
 
+- Use six bundled photographs in five openings, including an ISS-to-Apollo 17 sequence, with responsive framing and offline playback.
 - Redesign the set: keep Frosted Script, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain;
   replace Cinnabar Folio, Midnight Orbit and Aurum Theatre with Ink Landscape, Aurora Field and Phosphor Terminal.
   Retired ids migrate to their successors everywhere (profiles, `--theme`, legacy preference, renderer).

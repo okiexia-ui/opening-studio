@@ -39,8 +39,8 @@ window.WelcomeThemes = [
       {id: 'boat', name: '小舟', kind: 'toggle', default: 1},
       {id: 'seal', name: '印章', kind: 'toggle', default: 1},
     ]},
-  {id: 'aurora', name: '极光 · 冰原', english: 'Aurora Field', duration: 12, posterTime: 6, ground: '#030812', ink: '#38f0a8',
-    description: '冰原夜空亮起极光，光幕摇曳间浮现名字，再收束成一缕光描出标志。', motif: '极光 / 冰原 / 星空',
+  {id: 'aurora', name: '极光 · 冰原', english: 'Aurora Field', duration: 12, posterTime: 4.8, ground: '#030812', ink: '#38f0a8',
+    description: '阿拉斯加迪纳利的真实北极光越过林梢，名字在夜空浮现，一缕光接入标志。', motif: '极光 / 林线 / 夜空',
     fonts: ['serif', 'sans', 'elegant', 'kai'], font: 'serif', layouts: ['two', 'one'], layout: 'two', accentRole: 'glow',
     palettes: [
       {id: 'boreal', name: '极光绿', colors: {sky: ['#01040c', '#061524', '#0b2a35'], glow: '#38f0a8', high: '#8a5cff', ice: '#cfe6f2', text: '#eafff6'}},
@@ -51,7 +51,7 @@ window.WelcomeThemes = [
     elements: [
       {id: 'curtains', name: '极光强度', kind: 'range', default: .75},
       {id: 'stars', name: '星空', kind: 'range', default: .6},
-      {id: 'ice', name: '冰原', kind: 'toggle', default: 1},
+      {id: 'ice', name: '地景', kind: 'toggle', default: 1},
       {id: 'meteor', name: '流星', kind: 'toggle', default: 1},
     ]},
   {id: 'terminal', name: '磷光 · 终端', english: 'Phosphor Terminal', duration: 11.4, posterTime: 5.5, ground: '#120b02', ink: '#ffb000',
@@ -70,7 +70,7 @@ window.WelcomeThemes = [
       {id: 'flicker', name: '闪烁', kind: 'toggle', default: 1},
     ]},
   {id: 'civic', name: '长城 · 通行', english: 'Great Wall Pass', duration: 12.6, posterTime: 5.6, ground: '#f6efe2', ink: '#a50f19',
-    description: '宣纸朝阳间长城展开，朱红标题揭幕；身份认证走到 100%，印章落下：准予通行。', motif: '宣纸 / 长城 / 朱印',
+    description: '金山岭的雾中长城与宋体题字对开，通行核验完成后落下一方朱印。', motif: '宣纸 / 长城 / 朱印',
     fonts: ['song', 'kai', 'sans'], font: 'song', layouts: ['one'], layout: 'one', accentRole: 'red',
     palettes: [
       {id: 'red', name: '中国红', colors: {red: '#a50f19', gold: '176,138,74', land: '107,47,37', sun: '201,58,36', silk: '179,18,26'}},
@@ -80,13 +80,13 @@ window.WelcomeThemes = [
     ],
     elements: [
       {id: 'wall', name: '长城', kind: 'toggle', default: 1},
-      {id: 'clouds', name: '祥云与雁', kind: 'toggle', default: 1},
+      {id: 'clouds', name: '山间薄雾', kind: 'toggle', default: 1},
       {id: 'auth', name: '身份认证', kind: 'toggle', default: 1},
       {id: 'seal', name: '印章', kind: 'toggle', default: 1},
-      {id: 'silk', name: '红绸', kind: 'toggle', default: 1},
+      {id: 'silk', name: '题头色签', kind: 'toggle', default: 1},
     ]},
   {id: 'spell', name: '星烛 · 咒语', english: 'Candlelit Spell', duration: 13.6, posterTime: 6.9, ground: '#0d0b18', ink: '#f3d48b',
-    description: '星穹下浮烛次第点亮，一缕咒光凌空写下名字，火花散落，再飞去描出标志。', motif: '星穹 / 浮烛 / 咒光',
+    description: '教堂烛火映亮石墙，金色笔迹从火光里写出名字，再飞向标志。', motif: '烛火 / 石墙 / 金色笔迹',
     fonts: ['script', 'elegant', 'casual', 'kai'], font: 'script', layouts: ['one', 'two'], layout: 'one', accentRole: 'light',
     palettes: [
       {id: 'gold', name: '金烛', colors: {light: '#f6d48a', flame: '255,176,88', sky: ['#1d1738', '#110e22', '#07060d'], glass: '86,104,190'}},
@@ -95,13 +95,13 @@ window.WelcomeThemes = [
       {id: 'ember', name: '绯焰', colors: {light: '#ffb0a0', flame: '255,120,90', sky: ['#2a0f1c', '#170812', '#070306'], glass: '190,80,110'}},
     ],
     elements: [
-      {id: 'candles', name: '浮烛数量', kind: 'range', default: .75},
-      {id: 'stars', name: '星穹', kind: 'range', default: .6},
+      {id: 'candles', name: '烛光亮度', kind: 'range', default: .75},
+      {id: 'stars', name: '浮尘', kind: 'range', default: .6},
       {id: 'sparks', name: '火花', kind: 'range', default: .6},
-      {id: 'windows', name: '拱窗月光', kind: 'toggle', default: 1},
+      {id: 'windows', name: '暖色侧光', kind: 'toggle', default: 1},
     ]},
   {id: 'voyage', name: '星际 · 远航', english: 'Planetary Voyage', duration: 12.8, posterTime: 5.4, ground: '#02050b', ink: '#a8e6ff',
-    description: '晨光越过行星边缘，倒计时归零，推进器沿地平线点火，航迹锁定标志。', motif: '晨昏线 / 倒计时 / 航迹',
+    description: '从国际空间站拍摄的太平洋气辉，缓慢拉远到阿波罗 17 号镜头里的地球，再沿航迹进入应用。', motif: '气辉 / 阿波罗 17 / 航迹',
     fonts: ['sans', 'mono', 'serif'], font: 'sans', layouts: ['two', 'one'], layout: 'two', accentRole: 'hud',
     palettes: [
       {id: 'ice', name: '冰蓝', colors: {hud: '#8edcff', mark: '#e9f9ff', plume: '234,248,255', glow: '89,184,255', planet: ['#1d5f92', '#0c3358', '#051727', '#010409'], rim: '150,215,255', lights: '#ffcf8a'}},
@@ -109,13 +109,13 @@ window.WelcomeThemes = [
       {id: 'violet', name: '极紫', colors: {hud: '#c9a8ff', mark: '#f4ecff', plume: '244,236,255', glow: '170,120,255', planet: ['#43338a', '#1f1850', '#0b0920', '#03020a'], rim: '200,170,255', lights: '#ffd0f0'}},
     ],
     elements: [
-      {id: 'thrusters', name: '推进器', kind: 'toggle', default: 1},
+      {id: 'thrusters', name: '航迹光点', kind: 'toggle', default: 1},
       {id: 'countdown', name: '倒计时', kind: 'toggle', default: 1},
-      {id: 'hud', name: '航行仪表', kind: 'toggle', default: 1},
+      {id: 'hud', name: '照片档案号', kind: 'toggle', default: 1},
       {id: 'streaks', name: '星流', kind: 'range', default: .6},
     ]},
   {id: 'neon', name: '霓虹 · 雨夜', english: 'Neon Rain', duration: 11.6, posterTime: 4.4, ground: '#07060c', ink: '#ff5fa8',
-    description: '雨夜里霓虹灯管闪烁亮起，一个字母接触不良；电流沿灯管流进标志，倒影在积水里摇晃。', motif: '霓虹 / 雨丝 / 倒影',
+    description: '东京街头的灯牌映在雨伞和栏杆上，窗上的霓虹字亮起，电流沿着笔迹流进标志。', motif: '霓虹 / 雨丝 / 倒影',
     fonts: ['script', 'casual', 'elegant', 'kai'], font: 'script', layouts: ['one', 'two'], layout: 'one', accentRole: 'tube',
     palettes: [
       {id: 'pink', name: '粉紫', colors: {tube: '#ff3d9e', core: '#ffd3ea', mark: '#3fe0ff', markCore: '#d8fbff', glow: '255,45,150'}},
@@ -126,7 +126,7 @@ window.WelcomeThemes = [
     elements: [
       {id: 'rain', name: '雨势', kind: 'range', default: .6},
       {id: 'bokeh', name: '远处光斑', kind: 'range', default: .6},
-      {id: 'reflection', name: '积水倒影', kind: 'toggle', default: 1},
+      {id: 'reflection', name: '灯字倒影', kind: 'toggle', default: 1},
       {id: 'fault', name: '接触不良', kind: 'toggle', default: 1},
     ]},
 ];

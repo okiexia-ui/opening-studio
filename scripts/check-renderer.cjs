@@ -1,36 +1,73 @@
-const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),assert=require('assert'),crypto=require('crypto');
+const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),assert=require('assert');
 (async()=>{
  const executablePath=require('./browser-path.cjs')();if(!executablePath)throw Error('Install Chrome or set HYPERFRAMES_BROWSER_PATH.');
  const browser=await puppeteer.launch({executablePath,headless:true});
  try {
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  // Give the browser local, same-origin resources so photographic pixels can be inspected.
+  const origin='https://opening.test', root=path.resolve('film');
+  const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.jpg':'image/jpeg','.woff2':'font/woff2','.ttf':'font/ttf','.svg':'image/svg+xml'};
+  await page.setRequestInterception(true);
+  page.on('request',async request=>{
+   const url=new URL(request.url());
+   if(url.protocol==='data:'||url.protocol==='blob:')return request.continue();
+   const file=path.resolve(root,'.'+decodeURIComponent(url.pathname));
+   if(url.origin!==origin||!file.startsWith(root+path.sep))return request.abort();
+   try { const body=await fs.promises.readFile(file);await request.respond({status:200,contentType:mime[path.extname(file)]||'application/octet-stream',body}); }
+   catch { await request.respond({status:404,body:''}); }
+  });
+  await page.evaluateOnNewDocument(()=>{
+   window.frameDigest=async c=>{
+    const pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+    const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',pixels));
+    return Array.from(hash,n=>n.toString(16).padStart(2,'0')).join('');
+   };
+  });
   const viewports=[[1920,1080],[1470,853],[900,700],[500,900],[320,1200]],results=[];
   const media=process.env.OPENING_STUDIO_MEDIA_DIR || 'docs/media';
   fs.mkdirSync('.build',{recursive:true});fs.mkdirSync(media,{recursive:true});
-  await page.goto('file://'+path.resolve('film/native.html'));await page.waitForFunction('typeof renderer !== "undefined" && !!renderer');
+  await page.goto(origin+'/native.html');await page.waitForFunction('typeof renderer !== "undefined" && !!renderer');
   const themes=await page.evaluate(()=>WelcomeThemes.map(x=>x.id));
   for(const theme of themes)for(const [width,height] of viewports){
    await page.setViewport({width,height,deviceScaleFactor:1});
    await page.evaluate(id=>configureWelcome(id),theme);
-   const report=await page.evaluate(()=>{
+   const report=await page.evaluate(async()=>{
     const metrics=renderer.metrics(),duration=renderer.duration,frames=[];
-    for(const fraction of [.15,.45,.65,.9]){renderer.at(duration*fraction);frames.push(document.getElementById('canvas').toDataURL());}
+    for(const fraction of [.15,.45,.65,.9]){renderer.at(duration*fraction);frames.push(await frameDigest(document.getElementById('canvas')));}
     const begin=performance.now();for(let i=0;i<60;i++)renderer.at(duration*(.7+i/600));const frameMs=(performance.now()-begin)/60;
     renderer.at(duration);const c=document.getElementById('canvas'),end=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let nonTransparent=0;for(let i=3;i<end.length;i+=4)if(end[i])nonTransparent++;
     return {metrics,duration,frames,frameMs,nonTransparent,width:c.width,height:c.height};
    });
-   const hashes=report.frames.map(x=>crypto.createHash('sha256').update(x).digest('hex'));delete report.frames;
+   const hashes=report.frames;delete report.frames;
    assert.equal(new Set(hashes).size,4,'Animation must change across all four sampled beats');assert.equal(report.nonTransparent,0,'Exit reveals real application');assert.equal(report.width,width);assert.equal(report.height,height);
    results.push({theme,viewport:[width,height],hashes,...report});
    if(width===1920){await page.evaluate(id=>renderer.at(WelcomeThemes.find(x=>x.id===id).posterTime),theme);await page.screenshot({path:path.join(media,theme+'.png')});}
+  }
+  // Each exposure must actually reach the canvas, at full resolution, before playback.
+  const exposures=await page.evaluate(()=>WelcomePhotos.shots);
+  for(const [theme,ids] of Object.entries(exposures)){
+   await page.evaluate(o=>configureWelcome(o),{theme});
+   const seen=await page.evaluate(async ids=>{
+    const context=document.getElementById('canvas').getContext('2d'), draw=context.drawImage, found=new Set();
+    context.drawImage=function(image,...args){
+     for(const id of ids)if(image===WelcomePhotos.get(id)&&image.naturalWidth>=1600)found.add(id);
+     return draw.call(this,image,...args);
+    };
+    try {
+     const at=f=>{renderer.at(renderer.duration*f);return frameDigest(context.canvas);};
+     const initial=await at(.12);await at(.49);await at(.77);const repeat=await at(.12);
+     return {ids:[...found],repeatable:initial===repeat};
+    } finally {context.drawImage=draw;}
+   },ids);
+   assert.deepStrictEqual(seen.ids.sort(),[...ids].sort(),theme+' paints every credited exposure');assert(seen.repeatable,theme+' seeks without photo drift');
   }
   // Custom greetings: every theme takes the words, stays continuous, fits the stage and still exits cleanly.
   const custom=[{greeting:'Hello',name:'Ada Lovelace',title:'早上好',seal:'通'},{greeting:'你好',name:'小明',title:'智能政务工作平台',seal:'准予通行'}];
   for(const copy of custom)for(const theme of themes)for(const [width,height] of [[1920,1080],[320,1200]]){
    await page.setViewport({width,height,deviceScaleFactor:1});
-   await page.evaluate(o=>configureWelcome(o),{theme}).then(()=>page.evaluate(()=>{renderer.at(renderer.duration*.45);window.__base=document.getElementById('canvas').toDataURL();}));
+   await page.evaluate(o=>configureWelcome(o),{theme}).then(()=>page.evaluate(async()=>{renderer.at(renderer.duration*.45);window.__base=await frameDigest(document.getElementById('canvas'));}));
    const info=await page.evaluate(o=>configureWelcome(o),{theme,copy});
-   const r=await page.evaluate(()=>{const m=renderer.metrics(),c=document.getElementById('canvas'),frames=[];for(const f of [.15,.45,.65,.9]){renderer.at(renderer.duration*f);frames.push(c.toDataURL());}
+   const r=await page.evaluate(async()=>{const m=renderer.metrics(),c=document.getElementById('canvas'),frames=[];for(const f of [.15,.45,.65,.9]){renderer.at(renderer.duration*f);frames.push(await frameDigest(c));}
     const differs=frames[1]!==window.__base;renderer.at(renderer.duration);const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let opaque=false;for(let i=3;i<d.length;i+=4)if(d[i]){opaque=true;break;}
     return {copy:m.copy,joins:m.joinDistances,bounds:m.textBounds,layout:m.style.layout,distinct:new Set(frames).size,differs,opaque};});
    assert.deepStrictEqual(info.copy,copy,`${theme} receives the custom words`);assert.deepStrictEqual(r.copy,copy);
@@ -52,7 +89,7 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
    const paletteFrames=new Set();
    for(const style of variants){
     const info=await page.evaluate(o=>configureWelcome(o),{theme,style});
-    const r=await page.evaluate(()=>{const c=document.getElementById('canvas'),m=renderer.metrics(),a=[];for(const f of [.3,.5])(renderer.at(renderer.duration*f),a.push(c.toDataURL()));
+    const r=await page.evaluate(async()=>{const c=document.getElementById('canvas'),m=renderer.metrics(),a=[];for(const f of [.3,.5])(renderer.at(renderer.duration*f),a.push(await frameDigest(c)));
      renderer.at(renderer.duration);const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let opaque=false;for(let i=3;i<d.length;i+=4)if(d[i]){opaque=true;break;}
      return {frames:a,opaque,joins:m.joinDistances,style:m.style};});
     const label=`${theme} ${JSON.stringify(style)}`;
@@ -92,7 +129,7 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
   });
   assert.deepStrictEqual(firstFrame,['started'],'A painted first frame must make the native panel visible without a display tick');
   // Exercise selection, keyboard scrubbing, playback and small-window layout.
-  await page.setViewport({width:1440,height:1080,deviceScaleFactor:1});await page.goto('file://'+path.resolve('film/gallery.html'));await page.waitForFunction('window.galleryReady');
+  await page.setViewport({width:1440,height:1080,deviceScaleFactor:1});await page.goto(origin+'/gallery.html');await page.waitForFunction('window.galleryReady');
   for(const theme of themes){await page.click(`[data-theme="${theme}"]`);assert.equal(await page.$eval(`[data-theme="${theme}"]`,el=>el.getAttribute('aria-pressed')),'true');}
   await page.click('[data-theme="ink"]');await page.screenshot({path:path.join(media,'gallery.png'),fullPage:true});
   await page.click('#replay');await page.waitForFunction('Number(document.getElementById("seek").value)>.2');await page.click('#play');assert.equal(await page.$eval('#play',el=>el.getAttribute('aria-label')),'播放动画');
@@ -100,7 +137,7 @@ const puppeteer=require('puppeteer-core'),fs=require('fs'),path=require('path'),
   await page.setViewport({width:520,height:900,deviceScaleFactor:1});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No narrow-screen horizontal overflow');
   // Exercise the native settings protocol with a local message-handler stub.
   await page.evaluateOnNewDocument(()=>{window.__settingsMessages=[];window.webkit={messageHandlers:{settings:{postMessage:m=>__settingsMessages.push(m)}}};});
-  await page.goto('file://'+path.resolve('film/gallery.html'));await page.waitForFunction('window.galleryReady');
+  await page.goto(origin+'/gallery.html');await page.waitForFunction('window.galleryReady');
   await page.select('#target-app','com.anthropic.claudefordesktop');await page.click('[data-theme="terminal"]');await page.click('#profile-enabled');await page.click('#apply');
   const saved=await page.evaluate(()=>__settingsMessages.findLast(x=>x.event==='apply'));assert.deepStrictEqual(saved,{event:'apply',bundleID:'com.anthropic.claudefordesktop',theme:'terminal',enabled:false});
   await page.evaluate(x=>didApplyTheme(x),saved);await page.select('#target-app','com.openai.codex');assert.equal(await page.$eval('[data-theme="frost"]',e=>e.getAttribute('aria-pressed')),'true');

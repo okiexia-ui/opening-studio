@@ -58,6 +58,20 @@ assert.deepStrictEqual(swiftTable('limits'), jsTable('COPY_LIMITS'), 'greeting l
 // Every asset a bundled page loads must be copied into the app by the build.
 const build = read('scripts/build-native.sh');
 const bundled = new Set(build.match(/for TASK_ASSET in ([^;]+);/)[1].trim().split(/\s+/));
+vm.runInNewContext(read('film/assets/photos.js'), sandbox);
+const photoFiles = [];
+const credits = read('THIRD_PARTY_NOTICES.md');
+for (const [theme, shots] of Object.entries(sandbox.window.WelcomePhotos.shots)) {
+  assert(web[theme], `Photography refers to an unknown theme: ${theme}`);
+  for (const shot of shots) {
+    const name = shot + '.jpg';
+    assert(shot.startsWith(theme + '-'), `The variant exporter must discover ${name}`);
+    assert(credits.includes(name), `Credit the photograph ${name}`);
+    photoFiles.push(name);
+  }
+}
+assert.deepStrictEqual(photoFiles.sort(), fs.readdirSync(path.join(root, 'film/assets/photos')).filter(n => n.endsWith('.jpg')).sort(), 'Every photographic plate is bundled and credited');
+for (const script of [build, read('scripts/package-release.py')]) assert(script.includes('film/assets/photos/*.jpg'), 'Include photographs in distribution builds');
 for (const page of ['film/native.html', 'film/gallery.html']) {
   for (const [, asset] of read(page).matchAll(/(?:src|href)="assets\/([^"]+)"/g)) {
     assert(bundled.has(asset), `${page} loads assets/${asset}, which build-native.sh does not bundle`);

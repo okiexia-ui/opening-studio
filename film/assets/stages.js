@@ -5,7 +5,7 @@
  *
  * Contract: pure functions of time `t` on the normalised 0–15.8 clock, so any
  * frame can be rendered in any order (video export, gallery scrubbing, tests).
- * Random-looking detail comes from fixed seeds. No network, images or audio.
+ * Fixed seeds and locally decoded photographs keep native playback and video in sync.
  *
  *   0.0–7.5   stage and greeting       7.1–9.3  connector into points[0]
  *   7.5–9.9   greeting fades           9.3–13.1 mark is traced
@@ -124,8 +124,6 @@ window.WelcomeStages = (() => {
   const shadeTrip = (c, k) => shade(c, k).slice(4, -1);
   /** The chosen face at a size, honouring the text-size option. */
   const face = (env, px, weight = env.style.face.weight) => `${weight} ${Math.round(px * env.style.size)}px ${env.style.face.face}`;
-  /** A stable subset: item i is shown when its rank falls under the density. */
-  const ranked = (n, seed) => { const r = rng(seed); return Array.from({length: n}, () => r()); };
 
   function fillView(ctx, view, style) { ctx.fillStyle = style; ctx.fillRect(view.left - 2, view.top - 2, view.right - view.left + 4, view.bottom - view.top + 4); }
   /** A small four-point sparkle, the light source of the spell and neon stages. */
@@ -138,83 +136,13 @@ window.WelcomeStages = (() => {
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
 
-  /* ======================================================================
-   * 长城 · 通行 — adapted from the author's dsh-gov-boot splash (MIT): paper,
-   * meander frame, sun, auspicious clouds, ridges and the Great Wall. Then an
-   * identity check fills, a seal stamps 准予通行 and its red line becomes the
-   * connector. No government emblems, seals or page assets are used.
-   * ==================================================================== */
+  /* An ivory title page and a photographic plate of the wall at Jinshanling. */
   function civic(env) {
+    const P = env.style.colors, E = env.style.elements, red = P.red, copy = env.copy;
     const R = rng(1949);
-    const n1 = v => Math.round(v * 10) / 10;
-    const box = (x, y, w, h) => `M${n1(x)} ${n1(y)}h${n1(w)}v${n1(h)}h${n1(-w)}z`;
-    const disc = (cx, cy, r) => `M${n1(cx - r)} ${n1(cy)}a${r} ${r} 0 1 1 ${2 * r} 0a${r} ${r} 0 1 1 ${-2 * r} 0z`;
-    const curve = points => {
-      let d = `M${n1(points[0][0])} ${n1(points[0][1])}`;
-      for (let i = 0; i < points.length - 1; i++) {
-        const p0 = points[i - 1] || points[i], p1 = points[i], p2 = points[i + 1], p3 = points[i + 2] || p2;
-        d += ' C' + [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]].map(n1).join(' ');
-      }
-      return d;
-    };
-    // Land artwork lives in gov-boot's 1440×460 box, bottom-aligned and widened
-    // so ultra-wide and very tall windows stay covered.
-    const K = 1920 / 1440, TOP = 1080 - 460 * K, DEEP = 4600, WIDE = [-1300, 2740];
-    function ridge(seed, base, amp) {
-      const r = rng(seed), ph = [r() * 6.28, r() * 6.28, r() * 6.28], points = [];
-      for (let x = WIDE[0]; x <= WIDE[1]; x += 40) points.push([x, base - amp * (.55 * Math.sin(x / 260 + ph[0]) + .3 * Math.sin(x / 118 + ph[1]) + .15 * Math.sin(x / 51 + ph[2]))]);
-      return new Path2D(curve(points) + ` L${WIDE[1]} ${DEEP} L${WIDE[0]} ${DEEP} Z`);
-    }
-    const WALL = [[-40, 362], [40, 354], [120, 336], [190, 318], [250, 302], [300, 292], [352, 276], [396, 270], [440, 280], [500, 302], [560, 316], [620, 310], [680, 292], [730, 270], [772, 260], [820, 270], [880, 292], [940, 306], [1000, 300], [1060, 282], [1110, 266], [1150, 260], [1196, 270], [1260, 290], [1330, 304], [1400, 310], [1480, 314]];
-    const TOWERS = [[3, 16], [7, 24], [11, 17], [14, 26], [18, 18], [21, 25], [24, 16]];
-    const WIDE_WALL = [[-1300, 380], [-600, 372], ...WALL, [2000, 320], [2740, 326]];
-    const offset = dy => WIDE_WALL.map(([x, y]) => [x, y + dy]);
-    let towers = '', doors = '';
-    for (const [i, w] of TOWERS) {
-      const x = WALL[i][0], y = WALL[i][1] + 2, h = w * .95, left = x - w / 2, gap = (w + 3.2 - 2.6) / 3;
-      towers += box(left, y - h, w, h + 5) + box(left - 1.6, y - h - 2.4, w + 3.2, 3);
-      for (let k = 0; k < 4; k++) towers += box(left - 1.6 + k * gap, y - h - 6, 2.6, 3.8);
-      doors += box(x - w * .11, y - h * .62, w * .22, h * .3);
-    }
-    const land = {
-      far2: ridge(11, 196, 46), far: ridge(23, 246, 40), near: ridge(37, 412, 16),
-      mid: new Path2D(curve(offset(3)) + ` L${WIDE[1]} ${DEEP} L${WIDE[0]} ${DEEP} Z`),
-      crest: new Path2D(curve(WIDE_WALL)), merlons: new Path2D(curve(offset(-3.4))), walk: new Path2D(curve(offset(.8))),
-      towers: new Path2D(towers), doors: new Path2D(doors),
-    };
-    const puffs = [[40, 36, 16], [72, 26, 22], [106, 32, 18], [134, 42, 12]];
-    const cloudOutline = new Path2D(puffs.map(([x, y, r]) => disc(x, y, r)).join('') + 'M26 38h114a8 8 0 0 1 0 16H26a8 8 0 0 1 0-16z');
-    const cloudCurls = new Path2D(puffs.slice(0, 3).map(([x, y, r]) => { const a = r * .55; return `M${n1(x - a)} ${n1(y + a * .2)}a${n1(a)} ${n1(a)} 0 1 1 ${n1(a)} ${n1(a * .9)}a${n1(a * .5)} ${n1(a * .5)} 0 1 1 ${n1(-a * .42)} ${n1(-a * .6)}`; }).join('') + 'M150 46c6 0 9 3 9 6');
-    const CORNER = new Path2D('M1.5 45V1.5H45M7 31V7h24v18H13V13h12v6h-6');
-    const GEESE = new Path2D('M10 30q6-6 10 0q4-6 10 0M38 20q5-5 8 0q3-5 8 0M60 34q5-5 8 0q3-5 8 0M82 14q4-4 7 0q3-4 7 0M104 26q4-4 7 0q3-4 7 0');
-    const wear = Array.from({length: 46}, () => [6 + R() * 88, 6 + R() * 88, .35 + R() * 1.25]);
-    const notches = Array.from({length: 14}, () => { const side = Math.floor(R() * 4), u = 8 + R() * 84; return [[u, 4], [96, u], [u, 96], [4, u]][side].concat(.8 + R() * 1.6); });
-    const STEPS = [[4.3, 14], [4.8, 38], [5.3, 62], [5.8, 86], [6.4, 100]];
-    const SEAL = {x: 1238, y: 690, size: 104};
+    const wear = Array.from({length: 46}, () => [6 + R() * 88, 6 + R() * 88, .3 + R() * 1.1]);
+    const notches = Array.from({length: 12}, () => [4 + R() * 90, R() > .5 ? 5 : 95, .6 + R() * .9]);
     const SEAL_LAYOUT = [[[50, 70]], [[50, 46], [50, 83]], [[32, 45], [68, 45], [50, 82]], [[32, 45], [68, 45], [32, 82], [68, 82]]];
-    const copy = env.copy, standardSeal = copy.seal === '准予通行';
-    const P = env.style.colors, E = env.style.elements, red = P.red, gold = P.gold;
-    const blend = k => P.land.split(',').map(Number).map((v, i) => Math.round(v + ([252, 246, 232][i] - v) * k)).join(',');
-    const TITLE_WEIGHT = {song: 900, kai: 700, sans: 600}[env.style.font] || 900;
-    let fibreTile = null;
-    function fibre(ctx) {
-      if (!fibreTile) {
-        const c = document.createElement('canvas'); c.width = c.height = 20; const g = c.getContext('2d');
-        g.fillStyle = 'rgba(140,105,70,.0175)'; for (let x = 0; x < 20; x += 4) g.fillRect(x, 0, 1, 20);
-        g.fillStyle = 'rgba(140,105,70,.0125)'; for (let y = 0; y < 20; y += 5) g.fillRect(0, y, 20, 1);
-        fibreTile = ctx.createPattern(c, 'repeat');
-      }
-      return fibreTile;
-    }
-
-    function cloud(ctx, x, y, scale, alpha) {
-      if (alpha <= .002) return;
-      ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.globalAlpha = alpha;
-      ctx.lineWidth = 2.4; ctx.strokeStyle = rgba(gold, .6); ctx.stroke(cloudOutline);
-      ctx.fillStyle = '#fbf6ea'; ctx.fill(cloudOutline);
-      ctx.lineWidth = 1.3; ctx.lineCap = 'round'; ctx.strokeStyle = rgba(gold, .62); ctx.stroke(cloudCurls);
-      ctx.restore();
-    }
     function seal(ctx, x, y, size, rotation, scale, alpha) {
       if (alpha <= .002) return;
       const u = size / 100;
@@ -234,163 +162,55 @@ window.WelcomeStages = (() => {
       for (const [sx, sy, r] of notches) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill(); }
       ctx.restore();
     }
-    function landscape(ctx, t, view, alpha) {
-      const rise = easeOut(span(t, .6, 2.6));
-      ctx.save(); ctx.globalAlpha = alpha * rise; ctx.translate(0, TOP + (1 - rise) * 22 * K); ctx.scale(K, K);
-      const vertical = (y0, y1, stops) => { const g = ctx.createLinearGradient(0, y0, 0, y1); stops.forEach(([o, c]) => g.addColorStop(o, c)); return g; };
-      // Ridges are the land colour thinned towards paper, nearest darkest.
-      ctx.fillStyle = vertical(150, 460, [[0, rgba(blend(.55), .24)], [1, rgba(blend(.55), 0)]]); ctx.fill(land.far2);
-      ctx.fillStyle = vertical(206, 460, [[0, rgba(blend(.4), .3)], [1, rgba(blend(.4), .02)]]); ctx.fill(land.far);
-      ctx.fillStyle = vertical(260, 460, [[0, rgba(blend(.2), .36)], [.6, rgba(blend(.2), .12)], [1, rgba(blend(.2), .05)]]); ctx.fill(land.mid);
-      // The wall unrolls from the left along the ridge.
-      const reach = mix(view.left / K - 30, view.right / K + 30, ease(span(t, 1.5, 4.4)));
-      if (E.wall) {
-        ctx.save(); ctx.beginPath(); ctx.rect(WIDE[0], 0, reach - WIDE[0], DEEP); ctx.clip();
-        ctx.lineJoin = 'round'; ctx.strokeStyle = rgba(P.land, .5); ctx.lineWidth = 5.5; ctx.stroke(land.crest);
-        ctx.setLineDash([2.2, 2.6]); ctx.strokeStyle = rgba(P.land, .55); ctx.lineWidth = 2.8; ctx.stroke(land.merlons); ctx.setLineDash([]);
-        ctx.strokeStyle = 'rgba(247,236,217,.55)'; ctx.lineWidth = .9; ctx.stroke(land.walk);
-        ctx.fillStyle = rgba(P.land, .58); ctx.fill(land.towers); ctx.fillStyle = 'rgba(246,236,217,.75)'; ctx.fill(land.doors);
-        ctx.restore();
-      }
-      ctx.fillStyle = vertical(318, 392, [[0, 'rgba(251,245,232,0)'], [.5, 'rgba(251,245,232,.8)'], [1, 'rgba(251,245,232,0)']]); ctx.fillRect(WIDE[0], 318, WIDE[1] - WIDE[0], 74);
-      ctx.fillStyle = vertical(396, 460, [[0, rgba(blend(.1), .34)], [1, rgba(blend(.1), .12)]]); ctx.fill(land.near);
-      ctx.restore();
-    }
-
     return {
-      mark: {halo: red, core: red, width: 3, haloAlpha: .1, haloWidth: 11},
-      echo: red, ink: red, end: '#f7f5f0',
+      echo: red, ink: red, end: '#f4efe5',
+      mark: {halo: red, core: red, width: 3, haloAlpha: .12, haloWidth: 10},
       scene({ctx, t, view}) {
-        const fade = fadeOut(t), settle = 1 - .3 * smooth((t - 8.6) / 3);
-        // Paper with the vignette folded into its outer stops, then a woven fibre tile.
-        const paper = ctx.createRadialGradient(960, 330, 0, 960, 330, Math.max(1500, (view.right - view.left) * .8, (view.bottom - view.top) * .8));
-        paper.addColorStop(0, '#fcf7ec'); paper.addColorStop(.48, '#f6efe2'); paper.addColorStop(.78, '#efe4cf'); paper.addColorStop(1, '#e2d1b5');
-        fillView(ctx, view, paper);
-        fillView(ctx, view, fibre(ctx));
-
-        // Sun: a pale vermilion disc, rising.
-        const sun = easeOut(span(t, .4, 2.9));
-        ctx.save(); ctx.globalAlpha = sun * settle; ctx.translate(0, (1 - sun) * 16);
-        const sg = ctx.createRadialGradient(1488, 255, 0, 1488, 255, 125);
-        sg.addColorStop(0, rgba(P.sun, .3)); sg.addColorStop(.775, rgba(P.sun, .3)); sg.addColorStop(.805, rgba(P.sun, .12)); sg.addColorStop(1, rgba(P.sun, 0));
-        ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(1488, 255, 125, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-
-        const drift = easeOut(span(t, .9, 3.9));
-        if (E.clouds) cloud(ctx, 134 - 14 * (1 - drift), 173, 1.8, drift * settle);
-        ctx.save(); ctx.globalAlpha = E.clouds * smooth(span(t, 2.2, 3.4)) * (1 - smooth(span(t, 6.5, 9))) * .9; ctx.translate(1171 + 60 * span(t, 2, 9), 184 - 10 * span(t, 2, 9)); ctx.scale(1.18, 1.18);
-        ctx.strokeStyle = rgba(P.land, .42); ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(GEESE); ctx.restore();
-        landscape(ctx, t, view, settle);
-        if (E.clouds) cloud(ctx, 1498 + 14 * (1 - drift), 259, 1.32, drift * settle);
-
-        // Red silk along the bottom edge.
-        const silk = E.silk * smooth(span(t, 1, 2.4)) * settle;
-        if (silk > 0) {
-          for (const [phase, depth, color, alpha] of [[1.7, 50, shadeTrip(P.silk, .12), .35], [0, 34, P.silk, .9]]) {
-            ctx.save(); ctx.globalAlpha = silk * alpha; ctx.fillStyle = `rgb(${color})`; ctx.beginPath(); ctx.moveTo(view.left, view.bottom + 4);
-            for (let x = view.left; x <= view.right + 30; x += 30) ctx.lineTo(x, view.bottom - depth + 9 * Math.sin(x / 190 + phase + t * .35));
-            ctx.lineTo(view.right + 30, view.bottom + 4); ctx.closePath(); ctx.fill(); ctx.restore();
-          }
-          ctx.save(); ctx.globalAlpha = silk * .8; ctx.strokeStyle = '#e3c27a'; ctx.lineWidth = 2; ctx.beginPath();
-          for (let x = view.left; x <= view.right + 30; x += 30) ctx.lineTo(x, view.bottom - 34 + 9 * Math.sin(x / 190 + t * .35));
-          ctx.stroke(); ctx.restore();
+        const w = view.right - view.left, h = view.bottom - view.top, tall = w / h < 1.05;
+        const lift = smooth(span(t, 0, 10)), fade = fadeOut(t);
+        fillView(ctx, view, '#f5f0e6');
+        const plate = tall ? {left: view.left, top: view.top, right: view.right, bottom: view.top + h * .48}
+          : {left: view.left + w * .49, top: view.top, right: view.right, bottom: view.bottom};
+        const present = (1 - smooth(span(t, 7.5, 10.8))) * E.wall;
+        WelcomePhotos.cover(ctx, 'civic-jinshanling', plate, {focusX: .51, focusY: .69, zoom: 1.015 + lift * .055, alpha: present});
+        if (E.clouds && present > 0) {
+          const mist = ctx.createLinearGradient(0, plate.top, 0, plate.bottom);
+          mist.addColorStop(0, 'rgba(248,244,230,.28)'); mist.addColorStop(.7, 'rgba(248,244,230,0)');
+          ctx.save(); ctx.globalAlpha = present; ctx.fillStyle = mist; ctx.fillRect(plate.left, plate.top, plate.right - plate.left, plate.bottom - plate.top); ctx.restore();
         }
-
-
-        // Double hairline frame with meander corners, hugging the window.
-        const frame = smooth(span(t, .2, 1.4)), inset = 44;
-        if (frame > 0) {
-          const x0 = view.left + inset, y0 = view.top + inset, x1 = view.right - inset, y1 = view.bottom - inset;
-          ctx.save(); ctx.globalAlpha = frame; ctx.lineWidth = 1;
-          ctx.strokeStyle = rgba(gold, .55); ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-          ctx.strokeStyle = rgba(gold, .18); ctx.strokeRect(x0 + 7, y0 + 7, x1 - x0 - 14, y1 - y0 - 14);
-          ctx.strokeStyle = rgba(gold, 1); ctx.lineWidth = 1.7; ctx.lineCap = 'square';
-          for (const [x, y, sx, sy] of [[x0 - 2, y0 - 2, 1, 1], [x1 + 2, y0 - 2, -1, 1], [x0 - 2, y1 + 2, 1, -1], [x1 + 2, y1 + 2, -1, -1]]) {
-            ctx.save(); ctx.translate(x, y); ctx.scale(sx * 1.25, sy * 1.25); ctx.stroke(CORNER); ctx.restore();
-          }
-          ctx.restore();
+        const left = view.left + w * (tall ? .10 : .073), fit = w * (tall ? .80 : .37);
+        const y = view.top + h * (tall ? .69 : .49), ready = smooth(span(t, 1.0, 2.45)) * fade;
+        if (E.silk) {
+          ctx.save(); ctx.globalAlpha = fade; ctx.fillStyle = red;
+          ctx.fillRect(left, y - 182, 58 * smooth(span(t, .15, 1.65)), 5); ctx.restore();
         }
-
-        // Greeting block.
-        label(ctx, `${copy.greeting}  ${copy.name}`.toUpperCase(), 960, 352, {font: '600 20px Manrope', color: '#9a7a56', tracking: 12, fit: 1100, alpha: smooth(span(t, 2.3, 3.3)) * fade});
-        ctx.save();
-        // The title shrinks to fit when a custom one is long.
-        const titleFace = env.style.face.face;
-        let size = 124 * env.style.size; ctx.font = `${TITLE_WEIGHT} ${size}px ${titleFace}`;
-        const chars = [...copy.title], measure = () => chars.map(c => ctx.measureText(c).width);
-        let widths = measure(), track = 17;
-        const natural = widths.reduce((a, b) => a + b, 0) + track * (chars.length - 1);
-        if (natural > 1240) { size *= 1240 / natural; track *= 1240 / natural; ctx.font = `${TITLE_WEIGHT} ${size}px ${titleFace}`; widths = measure(); }
-        let x = 960 - (widths.reduce((a, b) => a + b, 0) + track * (chars.length - 1)) / 2;
-        const ink = ctx.createLinearGradient(0, 500 - size, 0, 512); ink.addColorStop(0, shade(red, .1)); ink.addColorStop(1, shade(red, -.08));
-        ctx.fillStyle = ink; ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = fade;
-        chars.forEach((c, i) => {
-          const open = ease(span(t, 2.6 + i * .16, 3.6 + i * .16));
-          if (open > 0) { ctx.save(); ctx.beginPath(); ctx.rect(x - 4, 500 - size * 1.0, widths[i] + 8, size * 1.21 * open); ctx.clip(); ctx.fillText(c, x, 500); ctx.restore(); }
-          x += widths[i] + track;
-        });
-        ctx.restore();
-        const rule = easeOut(span(t, 3.4, 4.3));
-        if (rule > 0) {
-          ctx.save(); ctx.globalAlpha = rule * fade;
-          for (const dir of [-1, 1]) {
-            const g = ctx.createLinearGradient(960, 0, 960 + dir * 190 * rule, 0); g.addColorStop(0, rgba(gold, .85)); g.addColorStop(1, rgba(gold, 0));
-            ctx.fillStyle = g; ctx.fillRect(dir > 0 ? 974 : 946 - 190 * rule, 551.5, 190 * rule, 1);
-          }
-          ctx.translate(960, 552); ctx.rotate(Math.PI / 4);
-          ctx.fillStyle = rgba(gold, .25); ctx.fillRect(-7.5, -7.5, 15, 15); ctx.fillStyle = red; ctx.fillRect(-4.5, -4.5, 9, 9);
-          ctx.restore();
+        label(ctx, (copy.greeting + '  ' + copy.name).toUpperCase(), left, y - 109, {font: '500 22px Manrope', tracking: 4.8, align: 'left', color: '#725c4e', fit, alpha: ready});
+        label(ctx, copy.title, left - 4, y + 17 + (1 - ready) * 12, {font: face(env, 117), tracking: 9, align: 'left', color: red, fit, alpha: ready});
+        if (E.wall) label(ctx, '金 山 岭 长 城', plate.right - w * .043, plate.bottom - Math.min(h * .045, 67), {font: '600 23px ' + SONG, tracking: 3.1, color: '#fffaf0', align: 'right', alpha: present});
+        const barWidth = Math.min(fit * .65, 325), barY = y + 130, value = smooth(span(t, 2.6, 6.65));
+        if (E.auth) {
+          const opacity = smooth(span(t, 2.3, 3.1)) * fade;
+          label(ctx, value < 1 ? '通行核验' : '准予通行', left, barY - 17, {font: '500 22px ' + SONG, align: 'left', tracking: 4, color: '#6d5a4d', alpha: opacity});
+          label(ctx, Math.round(value * 100) + '%', left + barWidth, barY - 17, {font: '400 19px Manrope', align: 'right', color: red, alpha: opacity});
+          ctx.save(); ctx.globalAlpha = opacity; ctx.fillStyle = '#cdbfad'; ctx.fillRect(left, barY, barWidth, 1.6);
+          ctx.fillStyle = red; ctx.fillRect(left, barY - .6, barWidth * value, 2.8); ctx.restore();
         }
-        label(ctx, `尊敬的 ${copy.name} · 您的工作台已就绪`, 960, 616, {font: `${env.style.font === 'sans' ? 400 : 500} 28px ${titleFace}`, color: '#6f5040', tracking: 6, fit: 1200, alpha: smooth(span(t, 3.8, 4.8)) * fade});
-
-        // Identity check: stepped progress, held at 86% like a real boot.
-        const bar = E.auth * smooth(span(t, 3.9, 4.4)) * fade;
-        if (bar > 0) {
-          let value = 0;
-          for (let i = 0; i < STEPS.length; i++) value = mix(value, STEPS[i][1], easeOut(span(t, STEPS[i][0], STEPS[i][0] + .32)));
-          const done = t >= 6.72, x0 = 722, x1 = 1158, y = 688;
-          label(ctx, done ? (standardSeal ? '认证通过 · 准予通行' : '认证通过') : '统一身份认证', x0, y - 16, {font: `${done ? 700 : 500} 21px ${titleFace}`, color: done ? red : '#6f5040', tracking: 5, align: 'left', alpha: bar});
-          label(ctx, `${Math.round(value)}%`, x1, y - 16, {font: '600 20px Manrope', color: done ? red : '#8a6b4c', align: 'right', alpha: bar});
-          ctx.save(); ctx.globalAlpha = bar;
-          ctx.fillStyle = rgba(gold, .12); ctx.fillRect(x0, y, x1 - x0, 9);
-          ctx.strokeStyle = rgba(gold, .5); ctx.lineWidth = 1; ctx.strokeRect(x0 - .5, y - .5, x1 - x0 + 1, 10);
-          const fill = ctx.createLinearGradient(x0, 0, x1, 0); fill.addColorStop(0, shade(red, .1)); fill.addColorStop(.8, red); fill.addColorStop(1, '#e3c27a');
-          ctx.fillStyle = fill; ctx.fillRect(x0 + 1.5, y + 1.5, (x1 - x0 - 3) * value / 100, 6);
-          ctx.restore();
-        }
-        // The stamp lands the moment the check completes.
-        const stamp = span(t, 6.62, 6.98), land_ = 1 + .42 * Math.pow(1 - easeOut(stamp), 2);
-        if (E.seal) {
-          seal(ctx, SEAL.x, SEAL.y, SEAL.size, -.1 + .02 * (1 - stamp), land_, Math.min(1, stamp * 3) * .94 * fadeOut(t + .3));
-          if (stamp > 0 && stamp < 1) radial(ctx, SEAL.x, SEAL.y, 120, trip(red), .12 * Math.sin(stamp * Math.PI));
-        }
-        label(ctx, '开屏 · 政务版', view.left + 110, view.bottom - 132, {font: `700 22px ${SONG}`, color: red, tracking: 7, align: 'left', alpha: smooth(span(t, 3, 4)) * fade});
-        label(ctx, 'SECURE WORKSPACE', view.left + 110, view.bottom - 104, {font: '500 15px Manrope', color: 'rgba(104,74,54,.9)', tracking: 5, align: 'left', alpha: smooth(span(t, 3, 4)) * fade});
-
-        // Connector: a vermilion hairline springs from the seal into the mark.
+        const sx = left + fit * .86, sy = y + 113, stamp = smooth(span(t, 6.0, 6.5));
+        if (E.seal) seal(ctx, sx, sy, 89, -.07, 1 + .19 * (1 - stamp), stamp * fade);
         if (t > 7.05) {
-          // From the seal, or the bar or the subtitle when those are switched off.
-          const from = E.seal ? {x: SEAL.x + 54, y: SEAL.y + 6} : E.auth ? {x: 1162, y: 692} : {x: 1250, y: 606};
-          const p = env.points[0], path = bezier(from, {x: from.x + 230, y: from.y + 20}, {x: p.x + 120, y: p.y + 210}, p);
-          stroke(ctx, path, 0, path.at(-1).l * ease(span(t, 7.05, 9.3)), red, 2, 1 - smooth((t - 10.5) / 2));
+          const from = E.seal ? {x: sx + 38, y: sy + 9} : {x: left + barWidth, y: barY};
+          const q = env.points[0], path = bezier(from, {x: from.x + 155, y: from.y + 12}, {x: q.x - 78, y: q.y + 120}, q);
+          stroke(ctx, path, 0, path.at(-1).l * ease(span(t, 7.05, 9.3)), red, 2.3, 1 - smooth(span(t, 10.15, 12.3)));
         }
       },
     };
   }
 
-  /* ======================================================================
-   * 星烛 · 咒语 — candles light one by one beneath a starry vault; a wand of
-   * light writes the name on the frost pen path, sheds sparks and flies on
-   * to trace the mark. Original artwork in a general magical-hall mood.
-   * ==================================================================== */
+  /* A strand of candlelight writes above real votive lights. */
   function spell(env) {
     const R = rng(7);
-    const stars = Array.from({length: 240}, () => ({x: R() * 2800 - 440, y: R() * 900 - 420, r: .4 + R() * 1.3, ph: R() * 6.28, sp: .5 + R() * 1.6}));
     const P = env.style.colors, E = env.style.elements, light = P.light;
-    // Up to 31 candles; the density option keeps a stable, evenly spread subset (23 by default).
-    const candles = Array.from({length: 31}, (_, i) => {
-      const d = .45 + R() * .62;
-      return {x: 50 + i * (1820 / 30) + (R() - .5) * 40, y: 96 + R() * 210 + (1 - d) * 90, d, ph: R() * 6.28, fl: R() * 6.28, rank: ((i * 7) % 31) / 31};
-    }).filter(c => c.rank < Math.min(1, E.candles / .75 * 23 / 31) - 1e-9).sort((a, b) => a.d - b.d);
+    const dust = Array.from({length: 46}, () => ({x: R(), y: R(), phase: R() * 6.28}));
     // Sparks are born at fixed times on the pen path, so any frame is reproducible.
     const sparkCount = Math.round(250 * E.sparks);
     const sparks = Array.from({length: sparkCount}, (_, k) => {
@@ -413,67 +233,29 @@ window.WelcomeStages = (() => {
       }
       ctx.globalAlpha = 1;
     }
-    function arch(ctx, cx, width, spring, apex, bottom) {
-      const l = cx - width / 2, r = cx + width / 2;
-      ctx.beginPath(); ctx.moveTo(l, bottom); ctx.lineTo(l, spring);
-      ctx.quadraticCurveTo(l, apex + (spring - apex) * .2, cx, apex); ctx.quadraticCurveTo(r, apex + (spring - apex) * .2, r, spring);
-      ctx.lineTo(r, bottom); ctx.closePath();
-    }
     return {
       echo: light, ink: light, end: P.sky[1],
       scene({ctx, t, view}) {
         const fade = fadeOut(t);
-        const sky = ctx.createLinearGradient(0, view.top, 0, view.bottom);
-        sky.addColorStop(0, P.sky[0]); sky.addColorStop(.45, P.sky[1]); sky.addColorStop(1, P.sky[2]);
-        fillView(ctx, view, sky);
-        // The vault: twinkling stars, thinning towards the hall.
-        const night = smooth(span(t, .1, 2.2)) * E.stars / .6;
-        ctx.fillStyle = '#e9e4ff';
-        for (const s of stars) {
-          const a = night * (.25 + .75 * (.5 + .5 * Math.sin(t * s.sp * 2.4 + s.ph))) * clamp((520 - s.y) / 380);
-          if (a <= .01) continue;
-          ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-        // Three tall pointed windows with a breath of moonlight.
-        const hall = E.windows * smooth(span(t, .3, 2));
-        for (const [cx, w] of [[420, 250], [960, 300], [1500, 250]]) {
-          ctx.save(); ctx.globalAlpha = hall;
-          arch(ctx, cx, w, 330, 150, view.bottom + 10);
-          const glass = ctx.createLinearGradient(0, 150, 0, 1000); glass.addColorStop(0, rgba(P.glass, .17)); glass.addColorStop(1, rgba(P.glass, 0));
-          ctx.fillStyle = glass; ctx.fill();
-          ctx.strokeStyle = rgba(shadeTrip(P.glass, .3), .08); ctx.lineWidth = 2; ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(cx, 150); ctx.lineTo(cx, view.bottom);
-          for (let y = 420; y < 1000; y += 150) { ctx.moveTo(cx - w / 2, y); ctx.lineTo(cx + w / 2, y); }
-          ctx.strokeStyle = rgba(shadeTrip(P.glass, .3), .05); ctx.stroke(); ctx.restore();
-        }
-        ctx.save(); ctx.globalAlpha = hall * .5; ctx.beginPath(); ctx.moveTo(810, 330); ctx.lineTo(1110, 330); ctx.lineTo(1380, view.bottom); ctx.lineTo(560, view.bottom); ctx.closePath();
-        const beam = ctx.createLinearGradient(0, 330, 0, view.bottom); beam.addColorStop(0, rgba(shadeTrip(P.glass, .2), .07)); beam.addColorStop(1, rgba(P.glass, 0));
-        ctx.fillStyle = beam; ctx.fill(); ctx.restore();
-
-        // Floating candles ignite in a sweep from left to right.
-        let warmth = 0;
-        for (const c of candles) {
-          const ignite = .5 + (c.x / 1920) * 2.4, lit = smooth((t - ignite) / .35), body = smooth((t - ignite + .2) / .3);
-          if (body <= 0) continue;
-          warmth += lit / candles.length;
-          const d = c.d, x = c.x, y = c.y + Math.sin(t * .85 + c.ph) * 7 * d, h = 60 * d, w = 11 * d;
-          radial(ctx, x, y - 8 * d, 125 * d, P.flame, .22 * lit);
-          ctx.save(); ctx.globalAlpha = body * .92;
-          const wax = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0); wax.addColorStop(0, '#d9cdb1'); wax.addColorStop(.45, '#f5edda'); wax.addColorStop(1, '#bfb193');
-          ctx.fillStyle = wax; ctx.fillRect(x - w / 2, y, w, h);
-          ctx.fillStyle = 'rgba(255,214,150,.35)'; ctx.fillRect(x - w / 2, y, w, 3 * d);
-          ctx.restore();
-          if (lit > 0) {
-            const flick = 1 + .12 * Math.sin(t * 15 + c.fl) + .06 * Math.sin(t * 27 + c.fl * 2), fh = 31 * d * flick * lit, fw = 8 * d;
-            ctx.save(); ctx.globalAlpha = lit;
-            const flame = ctx.createRadialGradient(x, y - fh * .35, 0, x, y - fh * .35, fh * .9);
-            flame.addColorStop(0, '#fffbe8'); flame.addColorStop(.45, shade(P.flame, .45)); flame.addColorStop(1, rgba(P.flame, 0));
-            ctx.fillStyle = flame; ctx.beginPath(); ctx.moveTo(x, y - fh);
-            ctx.quadraticCurveTo(x + fw, y - fh * .32, x, y - 1); ctx.quadraticCurveTo(x - fw, y - fh * .32, x, y - fh); ctx.fill(); ctx.restore();
+        const w = view.right - view.left, h = view.bottom - view.top;
+        const drift = smooth(span(t, 0, 11.5)), photo = 1 - smooth(span(t, 8.35, 12.1));
+        fillView(ctx, view, P.sky[2]);
+        WelcomePhotos.cover(ctx, 'spell-votives', view, {zoom: 1.025 + drift * .045, focusX: .56, focusY: .05 + .026 * drift, alpha: photo * (.66 + .34 * E.candles)});
+        if (photo > 0) {
+          const shade = ctx.createLinearGradient(0, view.top, 0, view.bottom);
+          shade.addColorStop(0, 'rgba(12,5,6,.24)'); shade.addColorStop(.48, 'rgba(12,5,6,.53)'); shade.addColorStop(.78, 'rgba(12,5,6,.04)');
+          ctx.save(); ctx.globalAlpha = photo; fillView(ctx, view, shade); ctx.restore();
+          if (E.windows) radial(ctx, view.left + w * .14, view.top + h * .13, Math.min(w, h) * .63, P.flame, .13 * photo);
+          if (E.candles) radial(ctx, view.left + w * .64, view.top + h * .83, Math.min(w, h) * .47, P.flame, (.07 + .025 * Math.sin(2.8 * t)) * E.candles * photo);
+          ctx.save(); ctx.fillStyle = P.light;
+          for (const mote of dust.slice(0, Math.round(dust.length * E.stars))) {
+            const x = view.left + w * mote.x + 12 * Math.sin(t * .4 + mote.phase);
+            const y = view.top + h * ((mote.y + 1 - t * .007) % 1);
+            ctx.globalAlpha = (.22 + .16 * Math.sin(t + mote.phase)) * photo;
+            ctx.beginPath(); ctx.arc(x, y, 1.55, 0, 2 * Math.PI); ctx.fill();
           }
+          ctx.restore();
         }
-        radial(ctx, 960, 160, 1100, P.flame, .07 * warmth * candles.length / 23);
 
         // The incantation: a glowing line written by a moving light.
         const p = pen(t, env), L = p.text;
@@ -503,156 +285,71 @@ window.WelcomeStages = (() => {
     };
   }
 
-  /* ======================================================================
-   * 星际 · 远航 — dawn over a planet's limb, a mission countdown, thrusters
-   * firing along the horizon, then a trajectory that locks onto the mark.
-   * Original sci-fi artwork; no film titles, logos or frames.
-   * ==================================================================== */
+  /* ISS airglow over the Pacific dissolves into the Apollo 17 Earth portrait. */
   function voyage(env) {
-    const R = rng(4242), PLANET = {x: 960, y: 3460, r: 2620};
-    const stars = Array.from({length: 430}, () => ({x: R() * 3200 - 640, y: R() * 2400 - 900, z: R(), r: .35 + R() * 1.2, ph: R() * 6.28}));
-    const lights = Array.from({length: 260}, () => ({a: (R() - .5) * .62, depth: 14 + R() * 260, r: .6 + R() * 1.4, ph: R() * 6.28}));
-    const engines = Array.from({length: 13}, (_, i) => ({a: -.33 + i * (.66 / 12) + (R() - .5) * .015, len: 175 + R() * 135, w: 8 + R() * 7, ph: R() * 6.28, delay: Math.abs(i - 6) * .07}));
-    const TELEMETRY = ['DEPARTURE SEQUENCE   启航序列', 'ORBIT ............ 1.000 AU', 'VELOCITY ........ {v} KM/S', 'DESTINATION ...... 4.24 LY', 'STATUS ........... {s}'];
-    const drop = t => 300 * ease(span(t, 6.1, 11)) - 80 * (1 - easeOut(span(t, 0, 2.6)));
-    const P = env.style.colors, E = env.style.elements, hud = P.hud, text = shade(hud, .3), bright = shade(hud, .8);
-    const big = {sans: 200, mono: 400, serif: 400}[env.style.font] ?? 300, small = {sans: 500, mono: 500, serif: 600}[env.style.font] ?? 500;
+    const P = env.style.colors, E = env.style.elements, two = env.style.layout === 'two';
+    const rnd = rng(22727);
+    const trails = Array.from({length: 18}, () => ({x: rnd(), y: rnd(), phase: rnd()}));
     return {
-      mark: {halo: `rgb(${P.glow})`, core: P.mark, width: 2.4, haloAlpha: .16, haloWidth: 14},
-      echo: hud, ink: hud, end: '#02050b',
+      echo: P.hud, ink: P.mark, end: '#020305',
+      mark: {halo: P.hud, core: P.mark, width: 2.7, haloAlpha: .16, haloWidth: 13},
       scene({ctx, t, view}) {
-        const fade = fadeOut(t), hudAlpha = E.hud * smooth(span(t, .4, 1.3)) * fade;
-        const dy = drop(t), speed = 300 * Math.max(0, ease(span(t + .05, 6.1, 11)) - ease(span(t - .05, 6.1, 11))) * 2.4 * E.streaks / .6;
-        fillView(ctx, view, '#02050b');
-        // Stars stream past once the burn begins.
-        ctx.save(); ctx.strokeStyle = '#dceeff'; ctx.lineCap = 'round';
-        for (const s of stars) {
-          const y = s.y + dy * (.15 + s.z * .55) + 0, streak = speed * (.4 + s.z * 2.2) + .01;
-          const a = (.25 + .75 * (.5 + .5 * Math.sin(t * 1.7 + s.ph))) * smooth(span(t, 0, 1.6)) * (.4 + s.z * .6);
-          if (y < view.top - 40 || y > view.bottom + 40) continue;
-          ctx.globalAlpha = a * (1 - Math.min(.5, streak / 160)); ctx.lineWidth = s.r * 1.6; ctx.beginPath(); ctx.moveTo(s.x, y); ctx.lineTo(s.x, y - streak); ctx.stroke();
-        }
-        ctx.restore();
-        // Planet with night-side city lights and a dawn-lit atmosphere.
-        const cy = PLANET.y + dy, sunX = 430, sunY = cy - Math.sqrt(PLANET.r ** 2 - (sunX - PLANET.x) ** 2);
-        const body = ctx.createRadialGradient(PLANET.x - 700, cy - PLANET.r + 160, 60, PLANET.x, cy, PLANET.r);
-        body.addColorStop(0, P.planet[0]); body.addColorStop(.12, P.planet[1]); body.addColorStop(.35, P.planet[2]); body.addColorStop(1, P.planet[3]);
-        ctx.fillStyle = body; ctx.beginPath(); ctx.arc(PLANET.x, cy, PLANET.r, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = P.lights;
-        for (const c of lights) {
-          const r = PLANET.r - c.depth, x = PLANET.x + Math.sin(c.a) * r, y = cy - Math.cos(c.a) * r;
-          ctx.globalAlpha = (.25 + .35 * Math.sin(c.ph + t * .7) ** 2) * clamp((x - 520) / 500) * smooth(span(t, .8, 2.4));
-          ctx.beginPath(); ctx.arc(x, y, c.r, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-        const dawn = easeOut(span(t, .7, 3.2));
-        const rim = ctx.createLinearGradient(view.left, 0, view.right, 0);
-        rim.addColorStop(0, rgba(P.rim, .7)); rim.addColorStop(clamp((sunX - view.left) / (view.right - view.left)), 'rgba(255,246,222,1)');
-        rim.addColorStop(.62, rgba(P.rim, .55)); rim.addColorStop(1, rgba(P.rim, .25));
-        for (const [w, a] of [[64, .05], [18, .2], [2.6, .75]]) {
-          ctx.save(); ctx.globalAlpha = a * (.35 + .65 * dawn); ctx.strokeStyle = rim; ctx.lineWidth = w;
-          ctx.beginPath(); ctx.arc(PLANET.x, cy, PLANET.r, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke(); ctx.restore();
-        }
-        // The sun clears the limb: a hot core and a long anamorphic streak.
-        const sunUp = sunY - 26 * dawn + 30 * (1 - dawn);
-        radial(ctx, sunX, sunUp, 720, P.glow, .16 * dawn);
-        radial(ctx, sunX, sunUp, 190, '255,243,214', .85 * dawn);
-        radial(ctx, sunX, sunUp, 34, '255,255,255', dawn);
-        for (const [h, a, len] of [[5, .45, 900], [1.4, .7, 1500]]) {
-          const g = ctx.createLinearGradient(sunX - len, 0, sunX + len, 0);
-          g.addColorStop(0, 'rgba(150,210,255,0)'); g.addColorStop(.5, `rgba(235,248,255,${a * dawn})`); g.addColorStop(1, 'rgba(150,210,255,0)');
-          ctx.fillStyle = g; ctx.fillRect(sunX - len, sunUp - h / 2, len * 2, h);
-        }
-        // Thrusters fire from the centre of the horizon outwards.
-        for (const e of engines) {
-          const ign = E.thrusters * smooth((t - 4.45 - e.delay) / .5) * (1 - .55 * smooth((t - 10) / 2.5));
-          if (ign <= 0) continue;
-          const bx = PLANET.x + Math.sin(e.a) * PLANET.r, by = cy - Math.cos(e.a) * PLANET.r, len = e.len * ign * (1 + .07 * Math.sin(t * 24 + e.ph));
-          ctx.save(); ctx.translate(bx, by); ctx.rotate(e.a);
-          for (const [scale, a, c0] of [[3.2, .22, P.glow], [1, .95, P.plume]]) {
-            const g = ctx.createLinearGradient(0, 0, 0, -len * (scale > 1 ? 1.15 : 1));
-            g.addColorStop(0, `rgba(${c0},${a})`); g.addColorStop(1, `rgba(${c0},0)`);
-            ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-e.w * scale / 2, 0); ctx.lineTo(0, -len * (scale > 1 ? 1.15 : 1)); ctx.lineTo(e.w * scale / 2, 0); ctx.closePath(); ctx.fill();
-          }
-          ctx.restore();
-          radial(ctx, bx, by, 60, P.rim, .45 * ign);
-        }
-        const flash = smooth(span(t, 4.4, 4.55)) * (1 - smooth(span(t, 4.55, 5.6)));
-        if (flash > 0 && (E.thrusters || E.countdown)) { ctx.save(); ctx.globalAlpha = .2 * flash; fillView(ctx, view, shade(hud, .7)); ctx.restore(); }
-
-        // HUD: corner brackets, typed telemetry, countdown ring.
-        ctx.save(); ctx.globalAlpha = hudAlpha * .7; ctx.strokeStyle = hud; ctx.lineWidth = 1.5;
-        const ix = 56, b = 64;
-        for (const [x, y, sx, sy] of [[view.left + ix, view.top + ix, 1, 1], [view.right - ix, view.top + ix, -1, 1], [view.left + ix, view.bottom - ix, 1, -1], [view.right - ix, view.bottom - ix, -1, -1]]) {
-          ctx.beginPath(); ctx.moveTo(x, y + sy * b); ctx.lineTo(x, y); ctx.lineTo(x + sx * b, y); ctx.stroke();
-        }
-        ctx.restore();
-        const vel = t < 4.5 ? '29.78' : (29.78 + 11.4 * ease(span(t, 4.5, 8))).toFixed(2), state = t < 4.45 ? 'STANDBY' : t < 6.1 ? 'IGNITION' : 'EN ROUTE';
-        TELEMETRY.forEach((line, i) => {
-          const text = line.replace('{v}', vel).replace('{s}', state), shown = Math.floor(text.length * span(t, .9 + i * .32, 1.6 + i * .32));
-          label(ctx, text.slice(0, shown), view.left + 120, view.top + 150 + i * 32, {font: `${i ? 400 : 600} 19px ${MONO}`, color: i === 4 && t >= 4.45 ? '#ffd58a' : text, align: 'left', alpha: hudAlpha * (i ? .72 : .95)});
+        const w = view.right - view.left, h = view.bottom - view.top, tall = w / h < .95;
+        const pull = smooth(span(t, 3.4, 6.25)), drift = smooth(span(t, 0, 11.6));
+        const handoff = smooth(span(t, 8.25, 12.15)), alive = 1 - handoff;
+        fillView(ctx, view, '#020305');
+        WelcomePhotos.cover(ctx, 'voyage-iss-airglow', view, {
+          focusX: .43 + .09 * drift, focusY: .57, zoom: 1.05 + .045 * drift, alpha: 1 - pull,
         });
-        label(ctx, 'T+' + (t < 4.45 ? '00:00' : `00:${String(Math.floor((t - 4.45) * 1.3)).padStart(2, '0')}`), view.right - 120, view.top + 150, {font: `500 19px ${MONO}`, color: text, align: 'right', alpha: hudAlpha * .8});
-        const cd = span(t, 2.2, 4.45), ring = E.countdown * smooth(span(t, 1.9, 2.4)) * (1 - smooth(span(t, 4.45, 5.1)));
-        if (ring > 0) {
-          ctx.save(); ctx.globalAlpha = ring; ctx.translate(960, 500); ctx.strokeStyle = rgba(hud, .35); ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.arc(0, 0, 168, 0, Math.PI * 2); ctx.stroke();
-          ctx.beginPath(); for (let k = 0; k < 60; k++) { const a = k / 60 * Math.PI * 2, r0 = k % 5 ? 178 : 174; ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); ctx.lineTo(Math.cos(a) * 186, Math.sin(a) * 186); } ctx.stroke();
-          ctx.strokeStyle = bright; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 168, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (cd * 3 % 1 || (cd >= 1 ? 1 : 0))); ctx.stroke();
+        const size = (tall ? Math.min(w * .82, h * .44) : Math.min(w * .51, h * .90)) * (1.12 - .14 * drift - .11 * handoff);
+        const cx = tall ? view.left + w * .52 : view.left + w * (.745 - .022 * drift);
+        const cy = view.top + h * (tall ? .31 : .482);
+        if (pull > 0) {
+          ctx.save(); ctx.globalCompositeOperation = 'screen';
+          WelcomePhotos.cover(ctx, 'voyage-apollo-earth', {left: cx - size / 2, top: cy - size / 2, right: cx + size / 2, bottom: cy + size / 2}, {alpha: pull * alive});
           ctx.restore();
-          const n = Math.min(2, Math.floor(cd * 3)), local = cd * 3 - n, digit = 3 - n;
-          if (cd < 1) label(ctx, String(digit), 960, 582, {font: face(env, 230, big), color: bright, alpha: ring * smooth(local / .15) * (1 - smooth((local - .75) / .25))});
         }
-        label(ctx, 'IGNITION', 960, 520, {font: face(env, 46, small), color: bright, tracking: 18, alpha: (E.countdown || E.thrusters) * Math.sin(Math.PI * span(t, 4.4, 5.15)) * .95});
-        // Greeting: a scan-line wipe with a settling colour fringe.
-        const wipe = ease(span(t, 5.25, 6.2)), fringe = 1 - smooth(span(t, 5.3, 6.7));
-        if (wipe > 0) {
-          ctx.save(); ctx.beginPath(); ctx.rect(960 - 720 * wipe, 380, 1440 * wipe, 320); ctx.clip();
-          // Two lines: eyebrow and callsign. One line: the whole greeting as the callsign.
-          const two = env.style.layout === 'two', eyebrow = env.copy.greeting === 'Welcome' ? 'WELCOME ABOARD' : env.copy.greeting.toUpperCase();
-          const callsign = two ? env.copy.name.toUpperCase() : `${env.copy.greeting} ${env.copy.name}`.toUpperCase(), y = two ? 620 : 596, px = two ? 168 : 132;
-          if (two) label(ctx, eyebrow, 960, 452, {font: face(env, 34, small), color: hud, tracking: 16, fit: 1300, alpha: fade * .9});
-          for (const [dx, c] of [[-5 * fringe, '#47e0ff'], [5 * fringe, '#ff5cc8']]) if (fringe > .02) label(ctx, callsign, 960 + dx, y, {font: face(env, px, big), color: c, tracking: 34, fit: 1400, alpha: fade * .35 * fringe});
-          label(ctx, callsign, 960, y, {font: face(env, px, big), color: P.mark, tracking: 34, fit: 1400, alpha: fade});
-          ctx.restore();
-          ctx.save(); ctx.globalAlpha = .6 * fade * wipe; ctx.fillStyle = bright; ctx.fillRect(960 - 720 * wipe, 380 + 320 * ((t * .9) % 1), 1440 * wipe, 1.2); ctx.restore();
+        const x = view.left + w * (tall ? .105 : .082), fit = w * (tall ? .80 : .44);
+        const y = view.top + h * (tall ? .65 : .54);
+        // Only shade the type side of the orbital exposure; leave the atmospheric bands intact.
+        if (pull < 1) {
+          const scrim = ctx.createLinearGradient(view.left, 0, view.right, 0);
+          scrim.addColorStop(0, rgba('#010205', .69 * (1 - pull)));
+          scrim.addColorStop(.64, rgba('#010205', 0)); fillView(ctx, view, scrim);
         }
-        // Trajectory from the horizon to the mark; a pulse makes the connection.
-        const p0 = env.points[0], start = {x: 860, y: cy - Math.sqrt(PLANET.r ** 2 - 100 ** 2) - 6};
-        const path = bezier(start, {x: start.x + 160, y: start.y - 430}, {x: p0.x - 300, y: p0.y + 260}, p0), Lpath = path.at(-1).l;
-        const plot = ease(span(t, 5.5, 7.1)), lineAlpha = (1 - smooth((t - 10.4) / 2)) * .9;
-        if (plot > 0) {
-          ctx.save(); ctx.setLineDash([6, 9]); ctx.lineDashOffset = -t * 40; stroke(ctx, path, 0, Lpath * plot, hud, 1.6, .55 * lineAlpha); ctx.restore();
-          const pulse = Lpath * ease(span(t, 7.1, 9.3));
-          if (pulse > 0) {
-            stroke(ctx, path, 0, pulse, `rgb(${P.glow})`, 8, .18 * lineAlpha); stroke(ctx, path, 0, pulse, P.mark, 2, lineAlpha);
-            if (t < 9.4) { const at = pointAt(path, pulse); radial(ctx, at.x, at.y, 40, P.rim, .8); }
+        const a = smooth(span(t, .65, 2.5)) * fadeOut(t);
+        if (two) {
+          label(ctx, env.copy.greeting.toUpperCase(), x + 4, y - 91, {font: face(env, 26, 500), tracking: 7, color: P.hud, align: 'left', fit, alpha: a});
+          label(ctx, env.copy.name, x, y + 61 + (1 - a) * 14, {font: face(env, 158), tracking: -3, color: '#f6f6f1', align: 'left', fit, alpha: a});
+        } else label(ctx, env.copy.greeting + ' ' + env.copy.name, x, y + 36, {font: face(env, 106), tracking: -1, color: P.mark, align: 'left', fit, alpha: a});
+        // The two exposure IDs are the actual NASA frame numbers.
+        const marginY = Math.min(h * .082, 108), captionY = view.bottom - marginY;
+        const captions = [['ISS  /  EASTERN PACIFIC', 'ISS072-E-896652', 1 - pull], ['APOLLO 17  /  EARTH', 'AS17-148-22727', pull]];
+        for (const [name, frame, weight] of captions) {
+          const opacity = weight * alive * smooth(span(t, .25, 1.15));
+          if (E.hud) label(ctx, name, x, captionY, {font: '500 19px Manrope', tracking: 3, align: 'left', fit: w * .46, color: '#d7dce2', alpha: opacity});
+          if (E.hud) label(ctx, frame, view.right - (x - view.left), captionY, {font: '500 18px ' + MONO, tracking: 1.2, align: 'right', fit: w * .34, color: '#d7dce2', alpha: opacity});
+        }
+        if (E.countdown && t < 3.5) {
+          const step = Math.min(2, Math.floor(t / 1.05));
+          label(ctx, 'T − 0' + (3 - step), x, view.top + marginY, {font: '400 20px ' + MONO, tracking: 2, align: 'left', color: P.mark, alpha: .9 * (1 - smooth(span(t, 2.7, 3.5)))});
+        }
+        if (t >= 6.75 && t < 12.5) {
+          const q = env.points[0], from = {x: x + 4, y: y + (two ? 110 : 83)};
+          const path = bezier(from, {x: from.x + w * .24, y: from.y}, {x: q.x - w * .11, y: q.y + 75}, q);
+          const length = path.at(-1).l * ease(span(t, 6.75, 9.3)), opacity = 1 - smooth(span(t, 9.6, 12.5));
+          const tip = stroke(ctx, path, 0, length, P.hud, 2.4, .95 * opacity);
+          if (tip && E.thrusters && t < 9.35) radial(ctx, tip.x, tip.y, 26, P.plume, .95);
+        }
+        if (E.streaks && t > 10.3) {
+          const u = span(t, 10.3, 15.6), a = Math.sin(Math.PI * u) * .4;
+          ctx.save(); ctx.strokeStyle = P.hud; ctx.globalAlpha = a; ctx.lineWidth = 1.2; ctx.beginPath();
+          for (const s of trails.slice(0, Math.round(trails.length * E.streaks))) {
+            const v = (s.phase + u) % 1, dx = (s.x - .5) * w, dy = (s.y - .5) * h;
+            ctx.moveTo(1392 + dx * v * 2, 540 + dy * v * 2); ctx.lineTo(1392 + dx * (v * 2 + .035), 540 + dy * (v * 2 + .035));
           }
+          ctx.stroke(); ctx.restore();
         }
-        // Target lock closes in around the mark.
-        const lock = ease(span(t, 7.3, 9.1)), lockAlpha = smooth(span(t, 7.3, 7.7)) * (1 - smooth(span(t, 9.8, 11)));
-        if (lockAlpha > 0) {
-          const half = mix(330, 215, lock), arm = 46;
-          ctx.save(); ctx.globalAlpha = lockAlpha * .85; ctx.strokeStyle = hud; ctx.lineWidth = 2;
-          for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-            const x = 1392 + sx * half, y = 540 + sy * half;
-            ctx.beginPath(); ctx.moveTo(x, y - sy * arm); ctx.lineTo(x, y); ctx.lineTo(x - sx * arm, y); ctx.stroke();
-          }
-          ctx.restore();
-          label(ctx, lock >= 1 ? 'TARGET LOCKED' : 'ACQUIRING', 1392 - half, 540 + half + 30, {font: `500 15px ${MONO}`, color: text, align: 'left', alpha: lockAlpha * .85 * E.hud});
-        }
-      },
-      front({ctx, t, g}) {
-        // Warp lines while the camera dives through the mark.
-        if (g.z <= 0) return;
-        const a = Math.sin(Math.PI * clamp(g.z * 1.2)) * .55;
-        ctx.save(); ctx.strokeStyle = shade(hud, .6); ctx.lineCap = 'round';
-        for (let k = 0; k < 90; k++) {
-          const ang = k * 2.39996, r0 = 160 + ((k * 97) % 520) + g.z * 900, r1 = r0 + 120 + g.z * 900;
-          ctx.globalAlpha = a * (.3 + ((k * 37) % 10) / 14); ctx.lineWidth = 1 + (k % 3);
-          ctx.beginPath(); ctx.moveTo(g.centreX + Math.cos(ang) * r0, 540 + Math.sin(ang) * r0); ctx.lineTo(g.centreX + Math.cos(ang) * r1, 540 + Math.sin(ang) * r1); ctx.stroke();
-        }
-        ctx.restore();
       },
     };
   }
@@ -666,11 +363,10 @@ window.WelcomeStages = (() => {
     const R = rng(2077), HORIZON = 800, P = env.style.colors, E = env.style.elements;
     const rain = Array.from({length: 380}, () => ({x: R() * 2900 - 500, y: R() * 1700, len: 26 + R() * 54, sp: 1300 + R() * 900, a: .06 + R() * .16}));
     const bokeh = Array.from({length: 44}, () => ({x: R() * 2400 - 240, y: 60 + R() * 700, r: 18 + R() * 70, c: ['255,70,160', '70,220,255', '255,178,90', '150,110,255'][Math.floor(R() * 4)], a: .04 + R() * .09, ph: R() * 6.28}));
-    const ripples = Array.from({length: 64}, () => ({y: R(), x: R() * 2400 - 240, w: 120 + R() * 520, ph: R() * 6.28}));
     // Ignition flicker and one temperamental stretch of tube, both scripted.
     const ON = [[1.62, 1.7], [1.92, 2.0], [2.18, 2.5], [2.62, 2.66], [2.82, 8.85], [8.97, 9.05], [9.12, 9.18]];
     const FAULTY = [env.textLength * .5997, env.textLength * .6803], FAULT_OFF = E.fault ? [[4.9, 5.03], [5.26, 5.31], [6.08, 6.18], [6.3, 6.33]] : [];
-    const drops = Math.round(230 * E.rain / .6);
+    const drops = Math.round(92 * E.rain);
     const inside = (t, list) => list.some(([a, b]) => t >= a && t < b);
     function tube(ctx, from, to, lit, scale = 1) {
       if (scale === 1) stroke(ctx, env.text, from, to, shade(P.tube, -.08), 46, .09 * lit);
@@ -684,6 +380,7 @@ window.WelcomeStages = (() => {
       stroke(ctx, env.text, 0, drawn, '#6a4b66', 2 * scale, .32 * glass);
       if (lit <= 0) return;
       const faulty = inside(t, FAULT_OFF) ? .08 : 1;
+      stroke(ctx, env.text, 0, env.textLength, '#130b16', 13 * scale, .83 * lit);
       tube(ctx, 0, FAULTY[0], lit, scale); tube(ctx, FAULTY[0], FAULTY[1], lit * faulty, scale); tube(ctx, FAULTY[1], env.textLength, lit, scale);
     }
     return {
@@ -691,27 +388,21 @@ window.WelcomeStages = (() => {
       scene({ctx, t, view}) {
         const fade = fadeOut(t), glass = smooth(span(t, .1, 1)) * fade;
         const lit = (inside(t, ON) ? 1 : 0) * (.86 + .14 * smooth(span(t, 2.82, 3.4))) * (.97 + .03 * Math.sin(t * 61));
-        const sky = ctx.createLinearGradient(0, view.top, 0, view.bottom);
-        sky.addColorStop(0, '#0d0b1c'); sky.addColorStop(.62, '#120c22'); sky.addColorStop(1, '#040408');
-        fillView(ctx, view, sky);
-        for (const b of bokeh) radial(ctx, b.x + Math.sin(t * .2 + b.ph) * 12, b.y, b.r, b.c, E.bokeh / .6 * b.a * smooth(span(t, 0, 1.5)) * (.8 + .2 * Math.sin(t * .9 + b.ph)));
-        radial(ctx, 960, 570, 980, P.glow, .11 * lit * fade);
-        // Wet street: a faint horizon, pink spill and a broken reflection.
-        const street = ctx.createLinearGradient(0, HORIZON, 0, view.bottom);
-        street.addColorStop(0, 'rgba(40,24,52,.55)'); street.addColorStop(1, 'rgba(6,5,10,.9)');
-        ctx.fillStyle = street; ctx.fillRect(view.left, HORIZON, view.right - view.left, view.bottom - HORIZON + 2);
-        ctx.save(); ctx.beginPath(); ctx.rect(view.left, HORIZON, view.right - view.left, view.bottom - HORIZON + 2); ctx.clip();
-        ctx.globalAlpha = .22 * E.reflection; ctx.translate(0, HORIZON + 8); ctx.scale(1, -.74); ctx.translate(0, -HORIZON); sign(ctx, t, lit * fade, glass * .6, 1.3); ctx.restore();
-        ctx.save(); ctx.strokeStyle = '#07060c'; ctx.lineCap = 'round';
-        for (const r of ripples) {
-          const y = HORIZON + 14 + r.y * (view.bottom - HORIZON), x = r.x + Math.sin(t * 1.3 + r.ph) * 30;
-          ctx.globalAlpha = .55; ctx.lineWidth = 2 + r.y * 5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + r.w, y); ctx.stroke();
+        const w = view.right - view.left, drift = smooth(span(t, 0, 10.8));
+        const photo = 1 - smooth(span(t, 8.2, 12.25));
+        fillView(ctx, view, '#09080d');
+        WelcomePhotos.cover(ctx, 'neon-tokyo-rain', view, {focusX: .50 + .075 * drift, focusY: .53, zoom: 1.01 + .055 * drift, alpha: photo});
+        // The name is reflected in a shop window. Its local shadow leaves the street lights in colour.
+        const night = ctx.createLinearGradient(0, view.top, 0, view.bottom);
+        night.addColorStop(0, 'rgba(8,6,14,.08)'); night.addColorStop(.44, 'rgba(8,6,14,.47)');
+        night.addColorStop(.64, 'rgba(8,6,14,.47)'); night.addColorStop(1, 'rgba(8,6,14,.11)');
+        ctx.save(); ctx.globalAlpha = photo; fillView(ctx, view, night); ctx.restore();
+        if (E.bokeh) for (const b of bokeh.slice(0, 12)) radial(ctx, b.x, b.y, b.r * .62, b.c, b.a * E.bokeh * photo);
+        if (E.reflection && lit > 0) {
+          ctx.save(); ctx.beginPath(); ctx.rect(view.left, HORIZON, w, Math.max(0, view.bottom - HORIZON)); ctx.clip();
+          ctx.translate(0, HORIZON + 8); ctx.scale(1, -.46); ctx.translate(0, -HORIZON);
+          sign(ctx, t, lit * fade * .16, 0, .8); ctx.restore();
         }
-        ctx.restore();
-        const deep = ctx.createLinearGradient(0, HORIZON, 0, HORIZON + 300); deep.addColorStop(0, 'rgba(6,5,10,0)'); deep.addColorStop(1, 'rgba(6,5,10,.82)');
-        ctx.fillStyle = deep; ctx.fillRect(view.left, HORIZON, view.right - view.left, view.bottom - HORIZON + 2);
-        ctx.save(); ctx.globalAlpha = .07; ctx.fillStyle = '#ffffff'; ctx.fillRect(view.left, HORIZON, view.right - view.left, 1.2); ctx.restore();
-
         sign(ctx, t, lit * fade, glass);
         // Current runs down the tube from the last letter into the mark.
         const p = pen(t, env), alive = 1 - smooth((t - 10.4) / 1.8);
@@ -949,83 +640,35 @@ window.WelcomeStages = (() => {
     };
   }
 
-  /* ======================================================================
-   * 极光 · 冰原 — night over an ice field: aurora curtains sway, their light
-   * lies on the ice, the greeting condenses out of the glow, and one strand
-   * of light pours into the mark. Additive light, drawn as curtain columns.
-   * ==================================================================== */
+  /* A slow move across an actual auroral exposure above the Denali treeline. */
   function aurora(env) {
-    const R = rng(5150), P = env.style.colors, E = env.style.elements, HORIZON = E.ice ? 820 : 1400;
-    const stars = Array.from({length: 360}, () => ({x: R() * 3000 - 540, y: R() * 1500 - 700, r: .3 + R() * 1.25, ph: R() * 6.28, sp: .5 + R() * 1.5}));
-    const ribbons = [
-      {base: 380, h: 270, a1: 64, l1: 520, w1: .34, a2: 26, l2: 190, w2: .55, ph: R() * 6, at: .6},
-      {base: 285, h: 200, a1: 52, l1: 610, w1: .27, a2: 22, l2: 230, w2: .48, ph: R() * 6, at: 1.3},
-      {base: 500, h: 170, a1: 46, l1: 450, w1: .42, a2: 18, l2: 160, w2: .7, ph: R() * 6, at: 2},
-    ];
-    const ridge = new Path2D();
-    ridge.moveTo(-1300, HORIZON + 4);
-    for (let x = -1300, r = rng(91); x <= 3220; x += 34) ridge.lineTo(x, HORIZON - 8 - 46 * Math.pow(Math.abs(Math.sin(x / 260 + 1.3)), 3) - 18 * r());
-    ridge.lineTo(3220, HORIZON + 4); ridge.closePath();
-    // One curtain column: a sharp, bright lower hem rising into the upper colour.
-    const column = document.createElement('canvas'); column.width = 4; column.height = 256;
-    { const g = column.getContext('2d'), gr = g.createLinearGradient(0, 256, 0, 0);
-      gr.addColorStop(0, rgba(P.glow, 0)); gr.addColorStop(.03, rgba(P.glow, .95)); gr.addColorStop(.22, rgba(P.glow, .55));
-      gr.addColorStop(.58, rgba(P.high, .22)); gr.addColorStop(1, rgba(P.high, 0)); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); }
-    const text = P.text, two = env.style.layout === 'two';
-    const eyebrowWeight = {serif: 500, sans: 500, elegant: 400, kai: 700}[env.style.font] ?? 500, nameWeight = {serif: 400, sans: 200, elegant: 400, kai: 700}[env.style.font] ?? 400;
-    function curtains(ctx, t, view, strength, step = 14) {
-      for (const rb of ribbons) {
-        const on = strength * smooth(span(t, rb.at, rb.at + 2.2));
-        if (on <= .01) continue;
-        for (let x = view.left - 20; x <= view.right + 20; x += step) {
-          const base = rb.base + rb.a1 * Math.sin(x / rb.l1 + t * rb.w1 + rb.ph) + rb.a2 * Math.sin(x / rb.l2 - t * rb.w2 + rb.ph * 2);
-          const h = rb.h * (.55 + .45 * Math.sin(x / (rb.l1 * .6) + t * .4 + rb.ph * 3));
-          const ray = .35 + .65 * (.5 + .5 * Math.sin(x * .045 + t * 1.3 + rb.ph)) * (.6 + .4 * Math.sin(x * .013 - t * .7));
-          ctx.globalAlpha = on * ray * .55;
-          ctx.drawImage(column, x, base - h, step + 2, h * 1.04);
-        }
-      }
-      ctx.globalAlpha = 1;
-    }
+    const P = env.style.colors, E = env.style.elements, two = env.style.layout === 'two';
+    const rnd = rng(5150), stars = Array.from({length: 85}, () => ({x: rnd(), y: rnd() * .46, phase: rnd() * 6.28}));
+    const text = P.text, eyebrowWeight = 500, nameWeight = env.style.face.weight;
     return {
       echo: P.glow, ink: P.glow, end: P.sky[1],
       mark: {halo: P.glow, core: shade(P.glow, .7), width: 2.6, haloAlpha: .2, haloWidth: 16},
       scene({ctx, t, view}) {
-        const fade = fadeOut(t), strength = E.curtains / .75;
-        const sky = ctx.createLinearGradient(0, view.top, 0, Math.min(view.bottom, HORIZON));
-        sky.addColorStop(0, P.sky[0]); sky.addColorStop(.6, P.sky[1]); sky.addColorStop(1, P.sky[2]);
-        fillView(ctx, view, sky);
-        const night = smooth(span(t, 0, 1.8)) * E.stars / .6;
-        ctx.fillStyle = '#eef4ff';
-        for (const s of stars) {
-          if (s.y > HORIZON - 30) continue;
-          const a = night * (.3 + .7 * (.5 + .5 * Math.sin(t * s.sp * 2 + s.ph)));
-          if (a <= .01) continue;
-          ctx.globalAlpha = Math.min(1, a); ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+        const fade = fadeOut(t), w = view.right - view.left, h = view.bottom - view.top;
+        const drift = smooth(span(t, 0, 11)), photo = 1 - smooth(span(t, 8.4, 12.3));
+        fillView(ctx, view, P.sky[0]);
+        WelcomePhotos.cover(ctx, 'aurora-denali', view, {
+          zoom: (E.ice ? 1.015 : 1.46) + drift * .042, focusX: .57 + drift * .06,
+          focusY: E.ice ? .84 : .035, alpha: photo * (.47 + .53 * E.curtains),
+        });
+        ctx.save(); ctx.fillStyle = P.text;
+        for (const star of stars.slice(0, Math.round(stars.length * E.stars))) {
+          ctx.globalAlpha = (.26 + .19 * Math.sin(t * .75 + star.phase)) * photo;
+          ctx.beginPath(); ctx.arc(view.left + w * star.x, view.top + h * star.y, 1.4, 0, Math.PI * 2); ctx.fill();
         }
-        ctx.globalAlpha = 1;
-        if (E.meteor) {
-          const m = span(t, 3.1, 3.75);
-          if (m > 0 && m < 1) {
-            const x = mix(240, 820, m), y = mix(110, 330, m), g = ctx.createLinearGradient(x - 220, y - 84, x, y);
-            g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(255,255,255,${.9 * Math.sin(m * Math.PI)})`);
-            ctx.save(); ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 220, y - 84); ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
-          }
-        }
-        ctx.save(); ctx.globalCompositeOperation = 'lighter'; curtains(ctx, t, view, strength); ctx.restore();
-        if (E.ice) {
-          // Ice field: distant ridges, a pale plain and the aurora lying on it.
-          const plain = ctx.createLinearGradient(0, HORIZON, 0, view.bottom);
-          plain.addColorStop(0, rgba(P.ice, .13)); plain.addColorStop(.06, rgba(P.sky[2], .96)); plain.addColorStop(1, P.sky[0]);
-          ctx.fillStyle = plain; ctx.fillRect(view.left, HORIZON, view.right - view.left, view.bottom - HORIZON + 2);
-          ctx.fillStyle = shade(P.sky[1], -.25); ctx.fill(ridge);
-          ctx.strokeStyle = rgba(P.ice, .22); ctx.lineWidth = 1.2; ctx.stroke(ridge);
-          ctx.save(); ctx.beginPath(); ctx.rect(view.left, HORIZON + 2, view.right - view.left, view.bottom - HORIZON); ctx.clip();
-          ctx.globalCompositeOperation = 'lighter'; ctx.translate(0, HORIZON); ctx.scale(1, -.32); ctx.translate(0, -HORIZON);
-          curtains(ctx, t, view, strength * .35, 28); ctx.restore();
+        ctx.restore();
+        if (E.meteor && t > 2.25 && t < 3.55) {
+          const u = span(t, 2.25, 3.55), x = view.left + w * (.61 + .19 * u), y = view.top + h * (.12 + .09 * u);
+          ctx.save(); ctx.globalAlpha = Math.sin(Math.PI * u) * .8; ctx.strokeStyle = P.text; ctx.lineWidth = 1.8;
+          ctx.beginPath(); ctx.moveTo(x - 55, y - 17); ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
         }
         // The greeting condenses out of the light, letter by letter.
-        radial(ctx, 960, 540, 620, trip(P.glow), .07 * smooth(span(t, 2.6, 4)) * fade);
+        const nameY = view.top + h * .36;
         const at = (str, i, n, start) => smooth(span(t, start + i * (1.1 / Math.max(1, n)), start + i * (1.1 / Math.max(1, n)) + .7)) * fade;
         const letters = (str, x, y, px, weight, tracking, start, color) => {
           const chars = [...str]; ctx.save(); ctx.font = face(env, px, weight); ctx.textBaseline = 'alphabetic';
@@ -1036,9 +679,9 @@ window.WelcomeStages = (() => {
           ctx.restore();
         };
         if (two) {
-          letters(env.copy.greeting.toUpperCase(), 960, 438, 40, eyebrowWeight, 14, 2.9, shade(P.glow, .55));
-          letters(env.copy.name, 960, 606, 156, nameWeight, 6, 3.5, text);
-        } else letters(`${env.copy.greeting} ${env.copy.name}`, 960, 580, 124, nameWeight, 4, 3, text);
+          letters(env.copy.greeting.toUpperCase(), 960, nameY - 112, 31, eyebrowWeight, 8, 2.9, shade(P.glow, .55));
+          letters(env.copy.name, 960, nameY + 19, 141, nameWeight, 2, 3.5, text);
+        } else letters(`${env.copy.greeting} ${env.copy.name}`, 960, nameY, 113, nameWeight, 2, 3, text);
         // One strand of light pours from the curtains into the mark.
         if (t > 6.9) {
           const q = env.points[0], path = bezier({x: 1660, y: 300}, {x: 1720, y: 520}, {x: q.x - 340, y: q.y + 120}, q), L = path.at(-1).l * ease(span(t, 6.9, 9.3));
@@ -1046,7 +689,7 @@ window.WelcomeStages = (() => {
           ctx.save(); ctx.globalCompositeOperation = 'lighter';
           stroke(ctx, path, 0, L, P.glow, 16, .12 * a); stroke(ctx, path, 0, L, shade(P.glow, .6), 2.4, .9 * a);
           ctx.restore();
-          if (t < 9.4) { const h = pointAt(path, L); radial(ctx, h.x, h.y, 46, shadeTrip(P.glow, .6), .7); }
+          if (t < 9.4) { const h = pointAt(path, L); radial(ctx, h.x, h.y, 21, shadeTrip(P.glow, .6), .52); }
         }
       },
     };

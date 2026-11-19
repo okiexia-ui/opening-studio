@@ -18,9 +18,11 @@ else
   cp "${TASK_BINARIES[1]}" "$TASK_APP/Contents/MacOS/WelcomeTommy"
 fi
 cp film/native.html film/gallery.html "$TASK_APP/Contents/Resources/film/"
-for TASK_ASSET in lettering.js handwriting.js logo.js marks.js renderer.js stages.js premium.js themes.js style.js native-player.js gallery.js gallery.css fonts.css; do
+for TASK_ASSET in lettering.js handwriting.js logo.js marks.js renderer.js photos.js stages.js premium.js themes.js style.js native-player.js gallery.js gallery.css fonts.css; do
   cp "film/assets/$TASK_ASSET" "$TASK_APP/Contents/Resources/film/assets/"
 done
+mkdir -p "$TASK_APP/Contents/Resources/film/assets/photos"
+cp film/assets/photos/*.jpg "$TASK_APP/Contents/Resources/film/assets/photos/"
 cp film/assets/fonts/* "$TASK_APP/Contents/Resources/film/assets/fonts/"
 cp LICENSE THIRD_PARTY_NOTICES.md "$TASK_APP/Contents/Resources/"
 xcrun swiftc -O -module-cache-path "$PWD/.build/module-cache" -framework AppKit native/MakeIcon.swift -o .build/MakeIcon

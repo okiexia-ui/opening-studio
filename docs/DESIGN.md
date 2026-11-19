@@ -25,7 +25,7 @@ typography and motions, not merely different colours on the same drawing.
 The application openings stay silent. The stage contains only the greeting,
 the line and the final mark; controls and explanatory labels live in the gallery.
 
-## v0.3 additions
+## v0.3 scene concepts before photography
 
 | Theme | Source of the visual form | Motion | Duration |
 | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ the nearest loose end behind it. Pen-up moves cost a fifth of their length on
 the clock and are never drawn. The result is fitted to the same stage box as
 the authored lettering, so the connector, mark and aperture are unchanged.
 
-## Redesign: keep the strongest, replace the rest
+## Eight-theme design
 
 Frosted Script, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain
 each have a scene and an idea of their own, so they stay. Cinnabar Folio,
@@ -74,3 +74,16 @@ declares its palettes (and which colour a custom accent replaces), fonts,
 layouts and scene elements in `film/assets/themes.js`, and its stage reads them.
 Pace stretches the shared 0–15.8 clock, so the native aperture mask and window
 handoff stay in step at any speed. Defaults reproduce the reviewed designs.
+
+
+## Photographic editions
+
+| Opening | Composition and movement |
+| --- | --- |
+| Planetary Voyage | An ISS photograph fills the window. Over just over two seconds of the standard cut, its atmospheric arc dissolves into the Apollo 17 Earth portrait. The disc moves to the right of the greeting in wide windows and above it in portrait. The source numbers identify each exposure. |
+| Great Wall Pass | A vertical Jinshanling photograph faces the greeting on ivory paper. Narrow windows place the photo above the type. The camera moves slowly along the wall towards its towers. |
+| Candlelit Spell | A portrait-format photograph of real votive candles supplies the architecture and flame colour. The written light travels across the darker stone above the candles. |
+| Aurora Field | The measured crop follows the curve of the aurora in Denali. The greeting occupies the open sky above the visible treeline. |
+| Neon Rain | A Tokyo street exposure supplies the signs, umbrellas and reflections. The animated tube lettering sits on a locally shaded band and reflects below. |
+
+Each exposure is decoded before the first native frame and travels with the app. Cropping follows the window aspect ratio. The five scenes share the same transparent exit and logo geometry as the other openings. [Photography credits](../THIRD_PARTY_NOTICES.md#photographs)

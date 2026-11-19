@@ -1,7 +1,7 @@
 # Third-party notices
 
 The MIT license applies to original project code. It does not grant rights
-in third-party fonts, trademarks, logos or tooling.
+in third-party fonts, photographs, trademarks, logos or tooling.
 
 ## OpenAI Blossom
 
@@ -37,8 +37,7 @@ project's MIT grant. The native app and gallery do not use GSAP.
 
 ## Original artwork and references
 
-The app icon, handwritten Welcome Tommy paths, paper, orbit and theatre
-artwork are original project work. Apple hello was a visual reference; no
+The app icon, handwritten Welcome Tommy paths and procedural ink, paper and CRT drawings are original project work. Apple hello was a visual reference; no
 Apple artwork or system resource is redistributed. The government sites
 informed colour and composition only; no government marks or page assets
 are included. See `docs/DESIGN.md` for source observations.
@@ -55,22 +54,25 @@ is original project artwork.
 
 ## dsh-gov-boot artwork (Great Wall Pass)
 
-The paper, meander-corner, cloud, geese, ridge, Great Wall and seal geometry
-in `film/assets/stages.js` (`civic`) is adapted from
-https://github.com/okiexia-ui/dsh-gov-boot, by the same author, under the MIT
-License:
+The engraved stamp treatment in Great Wall Pass is adapted from the author's
+[dsh-gov-boot](https://github.com/okiexia-ui/dsh-gov-boot) under the MIT license.
 
     Copyright (c) 2026 dsh-gov-boot contributors
 
-The full MIT permission notice is identical to this repository's `LICENSE`.
-The seal text, identity-check bar and connector are new. No national emblem,
-government seal, department name or page asset is included.
+The full MIT permission notice is included in this repository's `LICENSE`.
 
-## Genre themes
+## Photographs
 
-Candlelit Spell, Planetary Voyage and Neon Rain are original canvas artwork.
-They evoke familiar fantasy, science-fiction and city-night moods without
-using any film or book title, logo, character, typeface, frame or music.
+The six local JPEGs in `film/assets/photos/` are resized editions of published photographs. The compositions crop, pan, dissolve and overlay text on them. The same credits cover the app, the MP4 demos and the preview images.
+
+| File | Photograph and credit | Usage terms |
+| --- | --- | --- |
+| `voyage-iss-airglow.jpg` | *Nighttime Over the Eastern Pacific*, ISS072-E-896652, 23 March 2025. NASA Johnson Space Center, ISS Crew Earth Observations Facility. The image is cropped from the [unlabelled astronaut frame](https://eol.jsc.nasa.gov/DatabaseImages/ESC/large/ISS072/ISS072-E-896652.JPG). [NASA Earth Observatory](https://science.nasa.gov/earth/earth-observatory/nighttime-over-the-eastern-pacific-154648/) | [NASA imagery guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) |
+| `voyage-apollo-earth.jpg` | *The Blue Marble*, AS17-148-22727, 7 December 1972. NASA, Apollo 17 crew. The surrounding black margin was cropped. [NASA](https://science.nasa.gov/resource/the-blue-marble/) | [NASA imagery guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) |
+| `aurora-denali.jpg` | Aurora borealis in Denali National Park and Preserve. NPS photo by Robbie Hannawacker. [NPS Gallery](https://npgallery.nps.gov/AssetDetail/5c3915f0-1dd8-b71c-0747-90499f04f082) | Public domain, National Park Service |
+| `civic-jinshanling.jpg` | *Great Wall at Jinshanling*, Mx. Granger. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Great_Wall_at_Jinshanling.JPG) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `spell-votives.jpg` | *Candles church*, Antonio Borrillo. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Candles_church.JPG) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `neon-tokyo-rain.jpg` | *Tokyo*, Moyan Brenn. Adapted with a moving crop, local darkening, rain and animated lettering. [Original photograph](https://commons.wikimedia.org/wiki/File:Tokyo_%2815642193413%29.jpg) | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) |
 
 ## System fonts used at runtime
 

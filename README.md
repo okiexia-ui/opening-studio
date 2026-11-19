@@ -10,12 +10,12 @@
 | --- | --- | --- |
 | 雾彩 · 连笔 | 磨砂底色，连续彩线写出 Welcome Tommy | 15.8 秒 |
 | 水墨 · 山水 | 墨滴在宣纸上晕开成山，小舟穿雾；毛笔按笔锋写出名字，钤上名字印，再一笔勾出标志 | 12.4 秒 |
-| 极光 · 冰原 | 冰原夜空亮起极光，光幕摇曳间名字逐字凝出，再收成一缕光描出标志 | 12.0 秒 |
+| 极光 · 冰原 | 迪纳利的真实极光横过林梢，名字浮现在星空，再沿光迹进入标志 | 12.0 秒 |
 | 磷光 · 终端 | 旧显像管预热，开机自检滚过，光标敲出名字，光束像示波器一样描出标志 | 11.4 秒 |
-| 长城 · 通行 | 宣纸朝阳、祥云与长城展开，朱红标题揭幕；身份认证走到 100%，“准予通行”印章落下，红线从印章引向标志 | 12.6 秒 |
-| 星烛 · 咒语 | 星穹下浮烛次第点亮，一缕咒光凌空写下名字，火花散落，再飞去描出标志 | 13.6 秒 |
-| 星际 · 远航 | 晨光越过行星边缘，3-2-1 倒计时，推进器沿地平线点火，航迹锁定标志后跃迁 | 12.8 秒 |
-| 霓虹 · 雨夜 | 雨夜霓虹灯管闪烁亮起，一个字母接触不良，电流沿灯管流进标志，积水里有倒影 | 11.6 秒 |
+| 长城 · 通行 | 雾中金山岭与宋体题字左右对开，核验结束后落下朱印。窄窗改为上下构图 | 12.6 秒 |
+| 星烛 · 咒语 | 教堂烛火映着石墙，一道金色笔迹写下名字，再飞向标志 | 13.6 秒 |
+| 星际 · 远航 | 从空间站拍到的太平洋气辉过渡到阿波罗 17 号的整颗地球，航迹引入标志 | 12.8 秒 |
+| 霓虹 · 雨夜 | 东京雨夜里的灯牌、雨伞与倒影，窗上的霓虹字接入应用标志 | 11.6 秒 |
 
 <table><tr>
 <td><img src="docs/media/ink.png" alt="水墨 · 山水"></td><td><img src="docs/media/aurora.png" alt="极光 · 冰原"></td>
@@ -27,7 +27,7 @@
 <td><img src="docs/media/neon.png" alt="霓虹 · 雨夜"></td><td><img src="docs/media/frost.png" alt="雾彩 · 连笔"></td>
 </tr></table>
 
-ChatGPT 使用六瓣编织结，Claude 使用官网星芒图形，其他应用使用环形入口与本机应用图标。八种样式均无声，默认问候为 **Welcome Tommy**，可以改成你自己的（见下）。“长城 · 通行”沿用作者 [dsh-gov-boot](https://github.com/okiexia-ui/dsh-gov-boot) 片头的美术语言；其余均为原创美术，只取题材气质，不含任何影视作品的名称、标志、角色或字体。旧版的朱砂 · 启卷、霁蓝 · 引力、曜金 · 剧场已由水墨、极光、终端取代，原先选它们的应用会自动换成对应的新样式。
+ChatGPT 使用六瓣编织结，Claude 使用官网星芒图形，其他应用使用环形入口与本机应用图标。八种样式均无声，默认问候为 **Welcome Tommy**，可以改成你自己的（见下）。五款实景开屏使用六张摄影原片，随应用离线加载。太空版使用 NASA 的两张真实曝光，极光来自美国国家公园管理局，长城、烛光和东京街景来自署名摄影师。[摄影署名与原图](THIRD_PARTY_NOTICES.md#photographs)。旧版的朱砂 · 启卷、霁蓝 · 引力、曜金 · 剧场已由水墨、极光、终端取代，原先选它们的应用会自动换成对应的新样式。
 
 ## 自定义问候
 
@@ -52,7 +52,7 @@ ChatGPT 使用六瓣编织结，Claude 使用官网星芒图形，其他应用�
 | 节奏 | 舒缓 / 标准 / 利落，整体时长 ×1.22 / ×1 / ×0.78，窗口转场同步调整 |
 | 字体 | 连笔、花体、手写、楷体、衬线、宋体、无衬线、等宽中的若干种，视样式而定 |
 | 排版与字号 | 一行或两行（问候在上、名字在下），字号 75%–125% |
-| 场景元素 | 每种样式自己的开关和强度：例如水墨的远山层次、云雾、小舟、印章；极光的光幕强度、星空、冰原、流星；终端的扫描线、屏幕弧度、开机自检、闪烁；长城的长城、祥云、身份认证、印章、红绸；星烛的浮烛数量、火花；远航的推进器、倒计时、仪表、星流；霓虹的雨势、倒影、接触不良 |
+| 场景元素 | 每种样式自己的开关和强度：例如水墨的远山层次、云雾、小舟、印章；极光的光幕强度、星空、地景、流星；终端的扫描线、屏幕弧度、开机自检、闪烁；长城的长城、山间薄雾、通行核验、印章、题头色签；星烛的烛光亮度、浮尘、火花；远航的航迹光点、倒计时、照片档案号、星流；霓虹的雨势、倒影、接触不良 |
 
 边改边预览，缩略图同步更新；**恢复默认** 一键还原。只保存与默认不同的选项，存放在本机 `profiles.json` 的 `styles` 字段。
 
@@ -146,4 +146,4 @@ Opening Studio adds a silent opening animation to ChatGPT, Claude and other macO
 - **Privacy:** no network access during playback, and no Accessibility or Screen Recording permission. It reads only launch events, app icons and window bounds, and never chat content.
 - **Build from source:** `zsh scripts/build-native.sh --universal && zsh scripts/install.sh`. Renderer tests: `npm ci && npm run check` (Node 22+, Chrome).
 
-The greeting is editable: set the greeting word, your name, the Great Wall Pass title and its seal under GREETING in the settings window. Handwritten styles trace any phrase, Chinese included, from a system script face; the default “Welcome Tommy” keeps its hand-drawn path. The project is not affiliated with OpenAI, Anthropic, Apple or any adapted app vendor. MIT for original code. See [third-party notices](THIRD_PARTY_NOTICES.md) for fonts and marks.
+The greeting is editable: set the greeting word, your name, the Great Wall Pass title and its seal under GREETING in the settings window. Handwritten styles trace any phrase, Chinese included, from a system script face; the default “Welcome Tommy” keeps its hand-drawn path. The project is not affiliated with OpenAI, Anthropic, Apple or any adapted app vendor. MIT for original code. See [third-party notices](THIRD_PARTY_NOTICES.md) for photographs, fonts and marks.

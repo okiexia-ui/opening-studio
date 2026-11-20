@@ -15,8 +15,8 @@ PREFIX = f'OpeningStudio-v{VERSION}'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--require-demos', action='store_true', help='require the complete MP4 release set')
 options = parser.parse_args()
-demo_titles = ['Welcome Tommy', 'Cinnabar Folio', 'Midnight Orbit', 'Aurum Theatre',
-               'Great Wall Pass', 'Candlelit Spell', 'Planetary Voyage', 'Neon Rain', 'Claude Cinnabar']
+demo_titles = ['Welcome Tommy', 'Ink Landscape', 'Aurora Field', 'Phosphor Terminal',
+               'Great Wall Pass', 'Candlelit Spell', 'Planetary Voyage', 'Neon Rain', 'Claude Ink']
 videos = [ROOT / 'delivery' / (title + '.mp4') for title in demo_titles]
 missing = [p.name for p in videos if not p.is_file()]
 if missing:

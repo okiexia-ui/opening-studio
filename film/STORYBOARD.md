@@ -21,3 +21,18 @@ right-side Blossom and tunnel. No government imagery appears.
 
 The gallery is a quiet paper-toned selection surface, separate from playback.
 The original Frosted Script remains the installed default.
+
+## Redesign
+
+Cinnabar Folio, Midnight Orbit and Aurum Theatre are retired. Times below are on
+the normalised 0–15.8 clock; the pace option stretches them uniformly.
+
+- Ink Landscape: 0.3–4.1 ink drops land and the three mountain layers soak in;
+  2–3 the boat appears; 0–8.1 the brush writes the greeting above the peaks;
+  7.2 the name seal is pressed; 7.05–9.3 one brush line leads to the mark.
+- Aurora Field: 0.6–4.2 three curtains rise in turn; 3.1 a meteor (optional);
+  2.9–5 the greeting condenses letter by letter; 6.9–9.3 a strand of light from
+  the right-hand curtain pours into the mark.
+- Phosphor Terminal: 0.2–0.85 the raster opens from a bright line; 1–3.6 boot
+  log and greeting command; 3.9–6.3 the cursor types the greeting; 7.05–9.3 the
+  beam swings out; 9.3–13.1 the mark is drawn with phosphor persistence.

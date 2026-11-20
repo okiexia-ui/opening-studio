@@ -112,3 +112,26 @@ previous posters.
 Weakest result: Chinese stroke order follows the skeleton, not calligraphic
 order, so characters build up legibly but not as a person would write them.
 
+## Redesign and style options
+
+The three replacement styles were reviewed as nine-beat contact sheets and then
+in the settings panel with alternate palettes and layouts. Review led to these
+changes:
+
+- Ink Landscape's first mountains were rows of near-identical peaks. The layers
+  are now art-directed, with pines and texture strokes. Its bloom reveal also
+  showed hard circular clip edges, and now soaks in instead.
+- Aurora Field's strand into the mark started inside the greeting. It now leaves
+  the right-hand curtain, and the ice horizon was softened.
+- Phosphor Terminal's boot text was enlarged. Its fresh beam no longer stays lit
+  after the mark is drawn, and the mark settles to full brightness for the
+  handoff.
+
+Software-rendered frame cost is at or below Frosted Script for every new style
+and option combination measured. The full suite covers 119 style variants
+across the eight styles, schema sanity, migration of the retired ids and the
+settings protocol. The GUI integration test now starts from fixture profiles
+that still name the retired styles.
+
+Weakest shots: Ink Landscape's brush is a nib model, not a wet-ink simulation.
+Chinese pen paths follow the skeleton rather than true stroke order.

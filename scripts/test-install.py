@@ -2,6 +2,7 @@
 import os
 from pathlib import Path
 import plistlib
+import select
 import shutil
 import subprocess
 import tempfile
@@ -71,3 +72,51 @@ esac
     install()
     assert disabled.is_file() and not agent.exists() and not (work / 'loaded').exists()
     print('PASS: clean install, staged signature check, failed startup rollback, previous build and disabled upgrade')
+
+    # A downloaded build keeps its quarantine mark, and macOS refuses to run an
+    # un-notarized app that carries it. The installer must ask before removing
+    # the mark, and change nothing unless the person answers yes.
+    download = work / 'download' / APP.name
+    subprocess.run(['ditto', str(APP), str(download)], check=True)
+    subprocess.run(['find', str(download), '-exec', 'xattr', '-w', 'com.apple.quarantine', '0083;00000000;Safari;', '{}', ';'], check=True)
+    if subprocess.run(['spctl', '--assess', '--type', 'execute', str(download)], capture_output=True).returncode == 0:
+        print('SKIP: Gatekeeper accepts the quarantined build here, so the download prompt cannot be exercised')
+    else:
+        def install_download(name, answer=None):
+            target = work / name / 'Library'
+            command = ['/bin/zsh', '-c', 'source "$1"; install_companion "$2" "$3" gui/fixture',
+                       'installer-test', str(ROOT / 'scripts/install.sh'), str(download), str(target)]
+            if answer is None:
+                run = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+                return run.returncode, run.stdout + run.stderr, target
+            # A real terminal, as when the .command is opened from Finder.
+            primary, secondary = os.openpty()
+            proc = subprocess.Popen(command, env=env, stdin=secondary, stdout=secondary, stderr=secondary)
+            os.close(secondary)
+            output, sent = b'', False
+            while select.select([primary], [], [], 60)[0]:
+                try:
+                    chunk = os.read(primary, 4096)
+                except OSError:
+                    break
+                if not chunk:
+                    break
+                output += chunk
+                if not sent and '[y/N]'.encode() in output:
+                    os.write(primary, answer.encode())
+                    sent = True
+            proc.wait(timeout=60)
+            os.close(primary)
+            return proc.returncode, output.decode(errors='replace'), target
+
+        for name, answer in [('unattended', None), ('declined', 'n')]:
+            code, output, target = install_download(name, answer)
+            assert code != 0 and '未做任何更改' in output, (name, code, output)
+            assert not (target / 'Application Support/WelcomeTommy' / APP.name).exists(), name
+        code, output, target = install_download('accepted', 'y')
+        installed = target / 'Application Support/WelcomeTommy' / APP.name
+        assert code == 0 and installed.is_dir(), (code, output)
+        assert not subprocess.run(['xattr', '-p', 'com.apple.quarantine', str(installed / 'Contents/MacOS/WelcomeTommy')], capture_output=True).returncode == 0
+        assert subprocess.run(['xattr', '-p', 'com.apple.quarantine', str(download / 'Contents/MacOS/WelcomeTommy')], capture_output=True).returncode == 0
+        subprocess.run(['codesign', '--verify', '--deep', '--strict', str(installed)], check=True)
+        print('PASS: quarantined download stops unattended or when declined, installs after an explicit yes')

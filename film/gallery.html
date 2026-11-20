@@ -3,7 +3,7 @@
      This is a real preview; installation changes are enabled only in the native settings window. -->
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Opening Studio · 开屏选择</title>
 <link rel="stylesheet" href="assets/fonts.css"><link rel="stylesheet" href="assets/gallery.css">
-<script src="assets/lettering.js"></script><script src="assets/handwriting.js"></script><script src="assets/logo.js"></script><script src="assets/marks.js"></script><script src="assets/themes.js"></script><script src="assets/stages.js"></script><script src="assets/premium.js"></script><script src="assets/renderer.js"></script></head>
+<script src="assets/lettering.js"></script><script src="assets/handwriting.js"></script><script src="assets/logo.js"></script><script src="assets/marks.js"></script><script src="assets/themes.js"></script><script src="assets/style.js"></script><script src="assets/stages.js"></script><script src="assets/premium.js"></script><script src="assets/renderer.js"></script></head>
 <body><main>
  <header><a class="wordmark" href="#"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24V8h22v16M10 24V13h12v11M15 24v-6h2v6"/></svg><span>Opening Studio</span></a><span class="edition">MACOS · 开屏系列 03</span></header>
  <section class="intro"><div><p class="eyebrow">CHOOSE YOUR ENTRANCE</p><h1>让开始，多一种可能。</h1></div><p class="intro-note">为 ChatGPT、Claude 和你的应用准备。<br>只在冷启动播放，切回应用时保持安静。</p></section>
@@ -25,7 +25,20 @@
   <div class="viewer"><div class="stage"><canvas id="stage" aria-label="开屏动画预览"></canvas></div>
    <div class="transport"><button id="play" class="icon-button" aria-label="播放动画">▶</button><button id="replay" class="text-button">重播</button><input id="seek" type="range" min="0" max="15.8" step="0.01" value="0" aria-label="动画时间"><span id="time" class="time">00.0 / 15.8</span></div>
   </div>
-  <aside><p class="eyebrow">SELECTED OPENING</p><span id="number" class="number">02</span><h2 id="name">朱砂 · 启卷</h2><p id="english" class="english">Cinnabar Folio</p><p id="description" class="description"></p><p id="motif" class="motif"></p><div class="decision"><button id="apply" class="apply" hidden>用作开场动画</button><p id="status">预览页。可在菜单栏的 Opening Studio 中应用样式。</p></div></aside>
+  <aside><p class="eyebrow">SELECTED OPENING</p><span id="number" class="number">02</span><h2 id="name">水墨 · 山水</h2><p id="english" class="english">Ink Landscape</p><p id="description" class="description"></p><p id="motif" class="motif"></p><div class="decision"><button id="apply" class="apply" hidden>用作开场动画</button><p id="status">预览页。可在菜单栏的 Opening Studio 中应用样式。</p></div></aside>
+ </section>
+ <section class="style-panel" aria-label="定制样式">
+  <div class="style-head"><div><p class="eyebrow">CUSTOMIZE THIS STYLE</p><h3 id="style-title">定制样式</h3></div>
+   <div class="style-actions"><span id="style-note" class="app-note"></span><button id="style-reset" class="text-button">恢复默认</button><button id="style-save" class="add-app" hidden disabled>保存此样式</button></div></div>
+  <div class="style-grid">
+   <div class="style-group"><span class="group-label">配色</span><div id="palettes" class="swatches" role="radiogroup" aria-label="配色"></div>
+    <div class="accent-row"><label class="accent"><input type="color" id="accent" aria-label="自定义主色"><span>自定义主色</span></label><button id="accent-clear" class="text-button" hidden>使用配色原色</button></div></div>
+   <div class="style-group"><span class="group-label">节奏</span><div id="pace" class="segmented" role="radiogroup" aria-label="节奏"></div>
+    <span class="group-label">字体</span><select id="font" aria-label="字体"></select></div>
+   <div class="style-group"><span class="group-label">排版</span><div id="layout" class="segmented" role="radiogroup" aria-label="排版"></div>
+    <label class="slider"><span class="group-label">字号</span><input type="range" id="size" min="0.75" max="1.25" step="0.05" aria-label="字号"><output id="size-value"></output></label></div>
+   <div class="style-group"><span class="group-label">场景元素</span><div id="elements" class="elements"></div></div>
+  </div>
  </section>
  <section id="choices" class="choices" aria-label="开屏样式选择"></section>
  <footer><span>每一种开场，都回到你的真实窗口。</span><span>本地播放 · 无声开场</span></footer>

@@ -60,6 +60,22 @@ install_companion() (
   # Preserve the downloaded app's provenance and macOS launch checks.
   ditto --extattr --qtn "$source_app" "$stage/candidate.app"
   codesign --verify --deep --strict "$stage/candidate.app"
+  # macOS refuses to run an ad-hoc signed, un-notarized build that still carries
+  # the download mark: the self-test and the login item would both be killed.
+  # Never drop the mark silently; ask the person running the installer.
+  if xattr -p com.apple.quarantine "$stage/candidate.app/$exe" >/dev/null 2>&1 \
+     && ! spctl --assess --type execute "$stage/candidate.app" >/dev/null 2>&1; then
+    print -u2 'macOS 会阻止运行这个下载的应用：它使用 ad-hoc 签名，尚未取得 Apple 公证。'
+    if [[ -t 0 && -t 2 ]] && read -q '?是否移除这份安装副本的下载隔离标记并继续？[y/N] '; then
+      print -u2
+      xattr -dr com.apple.quarantine "$stage/candidate.app"
+    else
+      print -u2
+      print -u2 '未做任何更改。可以重新运行安装并回答 y，或先在“系统设置 › 隐私与安全性”中允许此应用：'
+      print -u2 '  https://support.apple.com/zh-cn/102445'
+      return 1
+    fi
+  fi
   "$stage/candidate.app/$exe" --self-test
   local candidate_plist="$stage/candidate.plist"
   plutil -create xml1 "$candidate_plist"

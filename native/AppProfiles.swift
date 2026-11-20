@@ -1,9 +1,74 @@
 import AppKit
 
-let openingThemes = ["frost":15.8, "cinnabar":11.8, "midnight":10.8, "aurum":12.2, "civic":12.6, "spell":13.6, "voyage":12.8, "neon":11.6]
-let openingThemeNames = ["frost":"雾彩 · 连笔", "cinnabar":"朱砂 · 启卷", "midnight":"霁蓝 · 引力", "aurum":"曜金 · 剧场", "civic":"长城 · 通行", "spell":"星烛 · 咒语", "voyage":"星际 · 远航", "neon":"霓虹 · 雨夜"]
+let openingThemes = ["frost":15.8, "ink":12.4, "aurora":12, "terminal":11.4, "civic":12.6, "spell":13.6, "voyage":12.8, "neon":11.6]
+let openingThemeNames = ["frost":"雾彩 · 连笔", "ink":"水墨 · 山水", "aurora":"极光 · 冰原", "terminal":"磷光 · 终端", "civic":"长城 · 通行", "spell":"星烛 · 咒语", "voyage":"星际 · 远航", "neon":"霓虹 · 雨夜"]
 /// Menu order; mirrors film/assets/themes.js (checked by scripts/check-consistency.cjs).
-let openingThemeOrder = ["frost", "cinnabar", "midnight", "aurum", "civic", "spell", "voyage", "neon"]
+let openingThemeOrder = ["frost", "ink", "aurora", "terminal", "civic", "spell", "voyage", "neon"]
+/// Retired styles map to their replacements; mirrors LEGACY in film/assets/style.js.
+let openingThemeLegacy = ["cinnabar":"ink", "midnight":"aurora", "aurum":"terminal"]
+/// A stored or requested theme id, moved forward if retired; nil when unknown.
+func currentTheme(_ id: String?) -> String? {
+    guard let id else {return nil}
+    let moved = openingThemeLegacy[id] ?? id
+    return openingThemes[moved] != nil ? moved : nil
+}
+
+/// One style's options as the settings page saved them. The renderer gives them
+/// meaning (palettes, fonts, elements) from film/assets/themes.js; native code
+/// only keeps the shape safe: short identifiers, a hex colour, bounded numbers.
+/// Every field decodes on its own, so one bad value never blocks the file.
+struct StyleOptions: Codable, Equatable {
+    var palette: String?
+    var accent: String?
+    var pace: String?
+    var font: String?
+    var layout: String?
+    var size: Double?
+    var elements: [String: Double]?
+    static let sizeRange = 0.75...1.25
+    static func identifier(_ value: Any?) -> String? {
+        guard let s = value as? String, s.range(of:"^[a-z0-9-]{1,24}$", options:.regularExpression) != nil else {return nil}
+        return s
+    }
+    static func colour(_ value: Any?) -> String? {
+        guard let s = value as? String, s.range(of:"^#[0-9a-fA-F]{6}$", options:.regularExpression) != nil else {return nil}
+        return s.lowercased()
+    }
+    static func number(_ value: Any?) -> Double? {
+        guard let n = value as? NSNumber else {return nil}
+        let d = n.doubleValue
+        return d.isFinite ? d : nil
+    }
+    init(fields: [String: Any]) {
+        palette = Self.identifier(fields["palette"]); pace = Self.identifier(fields["pace"])
+        font = Self.identifier(fields["font"]); layout = Self.identifier(fields["layout"])
+        accent = Self.colour(fields["accent"])
+        size = Self.number(fields["size"]).map { min(Self.sizeRange.upperBound, max(Self.sizeRange.lowerBound, $0)) }
+        if let raw = fields["elements"] as? [String: Any] {
+            var kept: [String: Double] = [:]
+            for key in raw.keys.sorted().prefix(16) where Self.identifier(key) != nil {
+                if let v = Self.number(raw[key]) {kept[key] = min(1, max(0, v))}
+            }
+            elements = kept.isEmpty ? nil : kept
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy:CodingKeys.self)
+        var fields: [String: Any] = [:]
+        for key in [CodingKeys.palette, .accent, .pace, .font, .layout] { if let v = try? c.decodeIfPresent(String.self, forKey:key) {fields[key.stringValue]=v} }
+        if let v = try? c.decodeIfPresent(Double.self, forKey:.size) {fields["size"]=v}
+        if let v = try? c.decodeIfPresent([String: Double].self, forKey:.elements) {fields["elements"]=v}
+        self.init(fields:fields)
+    }
+    var dictionary: [String: Any] {
+        var out: [String: Any] = [:]
+        if let palette {out["palette"]=palette}; if let accent {out["accent"]=accent}; if let pace {out["pace"]=pace}
+        if let font {out["font"]=font}; if let layout {out["layout"]=layout}; if let size {out["size"]=size}
+        if let elements {out["elements"]=elements}
+        return out
+    }
+    var isEmpty: Bool { dictionary.isEmpty }
+}
 
 /// The words every opening shows. Defaults, limits and cleaning mirror
 /// `normalizeCopy` in film/assets/renderer.js (checked by check-consistency.cjs).
@@ -71,7 +136,7 @@ struct AppProfile: Codable, Equatable {
         let name=bundle.object(forInfoDictionaryKey:"CFBundleDisplayName") as? String
             ?? bundle.object(forInfoDictionaryKey:"CFBundleName") as? String
             ?? url.deletingPathExtension().lastPathComponent
-        return AppProfile(bundleID:id,name:name,theme:id.contains("anthropic") ? "cinnabar":"midnight",enabled:true,path:url.path)
+        return AppProfile(bundleID:id,name:name,theme:id.contains("anthropic") ? "ink":"aurora",enabled:true,path:url.path)
     }
 }
 
@@ -81,6 +146,8 @@ struct ProfileDocument: Codable {
     var profiles: [AppProfile]
     /// Absent in older files and while the defaults are in use.
     var greeting: Greeting?
+    /// Per-style options by theme id; absent until someone customises a style.
+    var styles: [String: StyleOptions]?
     mutating func update(_ profile:AppProfile) {
         if let i=profiles.firstIndex(where:{$0.bundleID==profile.bundleID}) {profiles[i]=profile}
         else {profiles.append(profile)}
@@ -114,16 +181,22 @@ final class ProfileStore {
             guard decoded.version == 1 else {throw FileProblem.unsupported}
             var seen=Set<String>()
             let profiles=decoded.profiles.filter { !$0.bundleID.isEmpty && seen.insert($0.bundleID).inserted }.map { p -> AppProfile in
-                var p=p;if openingThemes[p.theme] == nil {p.theme="frost"};return p
+                var p=p;p.theme=currentTheme(p.theme) ?? "frost";return p
             }
             guard !profiles.isEmpty else {throw FileProblem.unsupported}
-            document=ProfileDocument(selectedID:decoded.selectedID,profiles:profiles,greeting:decoded.greeting?.sanitized)
+            var styles=[String: StyleOptions]()
+            for (key,options) in decoded.styles ?? [:] {
+                if let theme=currentTheme(key),!options.isEmpty {styles[theme]=options}
+            }
+            document=ProfileDocument(selectedID:decoded.selectedID,profiles:profiles,greeting:decoded.greeting?.sanitized,styles:styles.isEmpty ? nil:styles)
             lastRead=data
         } catch {loadError=error}
         if !document.profiles.contains(where:{$0.bundleID==document.selectedID}) {document.selectedID=document.profiles[0].bundleID}
     }
     var selected: AppProfile { profile(document.selectedID) ?? document.profiles[0] }
     var greeting: Greeting { document.greeting ?? .standard }
+    func style(_ theme:String)->[String: Any] { document.styles?[theme]?.dictionary ?? [:] }
+    var styles: [String: Any] { (document.styles ?? [:]).mapValues { $0.dictionary } }
     func profile(_ id:String)->AppProfile? {document.profiles.first{$0.bundleID==id}}
     func commit(_ change: (inout ProfileDocument) -> Void) throws {
         if let loadError {throw loadError}
@@ -150,16 +223,16 @@ final class ProfileStore {
     static func defaults()->[AppProfile] {
         let rows:[(String,String,String,Bool)]=[
             ("com.openai.codex","ChatGPT","frost",true),
-            ("com.anthropic.claudefordesktop","Claude","cinnabar",true),
+            ("com.anthropic.claudefordesktop","Claude","ink",true),
             ("com.openai.chat","ChatGPT Classic","frost",false),
-            ("com.microsoft.VSCode","Visual Studio Code","midnight",false),
-            ("md.obsidian","Obsidian","aurum",false),
-            ("ai.opencode.desktop","OpenCode","midnight",false),
-            ("com.tinyspeck.slackmacgap","Slack","cinnabar",false)]
+            ("com.microsoft.VSCode","Visual Studio Code","terminal",false),
+            ("md.obsidian","Obsidian","aurora",false),
+            ("ai.opencode.desktop","OpenCode","terminal",false),
+            ("com.tinyspeck.slackmacgap","Slack","neon",false)]
         return rows.map {id,name,theme,enabled in
             let path="/Applications/\(name).app"
             let legacy=id=="com.openai.codex" ? UserDefaults.standard.string(forKey:"openingTheme"):nil
-            return AppProfile(bundleID:id,name:name,theme:legacy.flatMap { openingThemes[$0] != nil ? $0:nil } ?? theme,enabled:enabled,path:FileManager.default.fileExists(atPath:path) ? path:nil)
+            return AppProfile(bundleID:id,name:name,theme:currentTheme(legacy) ?? theme,enabled:enabled,path:FileManager.default.fileExists(atPath:path) ? path:nil)
         }
     }
 }

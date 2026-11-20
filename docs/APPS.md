@@ -8,12 +8,12 @@ Activating an existing process never starts an opening.
 | Application | Bundle ID | Default | Mark |
 | --- | --- | --- | --- |
 | ChatGPT / Codex / Work | `com.openai.codex` | Frosted Script, enabled | OpenAI Blossom |
-| Claude | `com.anthropic.claudefordesktop` | Cinnabar Folio, enabled | Claude asterisk |
+| Claude | `com.anthropic.claudefordesktop` | Ink Landscape, enabled | Claude asterisk |
 | ChatGPT Classic | `com.openai.chat` | Frosted Script, disabled | OpenAI Blossom |
-| Visual Studio Code | `com.microsoft.VSCode` | Midnight Orbit, disabled | Portal + installed app icon |
-| Obsidian | `md.obsidian` | Aurum Theatre, disabled | Portal + installed app icon |
-| OpenCode | `ai.opencode.desktop` | Midnight Orbit, disabled | Portal + installed app icon |
-| Slack | `com.tinyspeck.slackmacgap` | Cinnabar Folio, disabled | Portal + installed app icon |
+| Visual Studio Code | `com.microsoft.VSCode` | Phosphor Terminal, disabled | Portal + installed app icon |
+| Obsidian | `md.obsidian` | Aurora Field, disabled | Portal + installed app icon |
+| OpenCode | `ai.opencode.desktop` | Phosphor Terminal, disabled | Portal + installed app icon |
+| Slack | `com.tinyspeck.slackmacgap` | Neon Rain, disabled | Portal + installed app icon |
 
 Use **应用与开屏… → 添加应用** to choose another `.app`. The bundle identifier
 and its location are saved only on this Mac. Background-only apps, menu-bar
@@ -61,3 +61,17 @@ During an interactive integration run, switching to another app intentionally
 cancels the opening. The test records `firstPlaybackFinish` and accepts this
 real-user cancellation separately from natural completion. It does not keep
 forcing focus back while the user works.
+
+## Style options and retired styles
+
+Style options belong to a style, not an app: every app using Ink Landscape
+shares its palette, pace, font, layout, size and scene elements. They are stored
+as the `styles` object in `profiles.json`, keyed by theme id, holding only the
+options that differ from the defaults. Native code keeps the shape safe (short
+identifiers, `#rrggbb` accents, sizes 0.75–1.25, element values 0–1, each field
+decoded on its own); `film/assets/style.js` decides what they mean and falls back
+to defaults for anything a style does not offer.
+
+Cinnabar Folio, Midnight Orbit and Aurum Theatre were retired. Profiles,
+`--theme` arguments and the legacy single-theme preference that name them open
+as Ink Landscape, Aurora Field and Phosphor Terminal respectively.

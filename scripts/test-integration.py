@@ -56,7 +56,7 @@ try:
  assert not any(e['event']=='animation_started' for e in events()), 'switching to a resident app replayed its opening'
  close(0);wait_for('target_terminated',ids[0])
  print('PASS: background cold launch and later foreground activation stay silent',flush=True)
- launch(0,delayed=True);a=wait_for('animation_started',ids[0]);pids[0]=a['pid'];assert a['theme']=='cinnabar' and a['duration']==11.8
+ launch(0,delayed=True);a=wait_for('animation_started',ids[0]);pids[0]=a['pid'];assert a['theme']=='ink' and a['duration']==12.4
  wait_for('animation_visible',ids[0]);time.sleep(.5);os.kill(pids[0],signal.SIGUSR1);wait_for('window_followed',ids[0])
  first_finish=wait_for('animation_finished',ids[0]);assert first_finish['reason'] in {'completed','user_switched_app'}, first_finish
  if first_finish['reason']=='user_switched_app':print('User switched apps: verified prompt cancellation instead of natural completion',flush=True)
@@ -71,10 +71,10 @@ try:
  saved['profiles'][1]['enabled']=True;config.write_text(json.dumps(saved));start_observer(2);time.sleep(.3)
  assert len([e for e in events() if e['event']=='animation_started'])==1
  print('PASS: disabled profile, independent persistence, existing app ignored after observer restart',flush=True)
- launch(1);b=wait_for('animation_started',ids[1]);pids[1]=b['pid'];assert b['theme']=='aurum' and b['duration']==12.2
+ launch(1);b=wait_for('animation_started',ids[1]);pids[1]=b['pid'];assert b['theme']=='terminal' and b['duration']==11.4
  wait_for('animation_visible',ids[1]);close(0);wait_for('target_terminated',ids[0],count=2);launch(0)
  a2=wait_for('animation_started',ids[0],count=2);pids[0]=a2['pid'];wait_for('animation_visible',ids[0],count=2)
- assert a2['theme']=='cinnabar'
+ assert a2['theme']=='ink'
  running=None
  for e in events():
   if e['event']=='animation_started':assert running is None, 'overlapping playback';running=e['target']

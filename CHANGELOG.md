@@ -2,6 +2,8 @@
 
 ## 0.3.0
 
+- Ask before removing the download mark from the installed copy when macOS would refuse the un-notarized
+  build, instead of failing silently; test unattended, declined and accepted paths.
 - Redesign the set: keep Frosted Script, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain;
   replace Cinnabar Folio, Midnight Orbit and Aurum Theatre with Ink Landscape, Aurora Field and Phosphor Terminal.
   Retired ids migrate to their successors everywhere (profiles, `--theme`, legacy preference, renderer).

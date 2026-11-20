@@ -68,7 +68,9 @@ ChatGPT 使用六瓣编织结，Claude 使用官网星芒图形，其他应用�
 
 支持 macOS 13+，提供 Apple Silicon / Intel 通用二进制；实际运行验证在 Apple Silicon 上完成。
 
-> 当前安装包使用 ad-hoc 签名，尚未取得 Apple 公证。安装器保留下载来源标记。如果系统提示无法验证开发者，请参阅 [Apple 的 macOS 应用安全说明](https://support.apple.com/zh-cn/102445)。
+> 当前安装包使用 ad-hoc 签名，尚未取得 Apple 公证。第一次双击安装器时 macOS 会拦一次：macOS 13–14 在访达中按住 Control 点按、选择“打开”；macOS 15 起先双击一次，再到“系统设置 › 隐私与安全性”点“仍要打开”。
+>
+> 安装器默认保留下载来源标记。macOS 会阻止带着这个标记的未公证应用运行，所以遇到这种情况，安装器会先说明，并询问是否移除**这份安装副本**的标记：回答 y 才移除并继续，否则不做任何更改。下载的原文件保持不变。参见 [Apple 的 macOS 应用安全说明](https://support.apple.com/zh-cn/102445)。
 
 升级前会先校验新包。登录项启动失败会恢复上一版，已经关闭的登录项在升级后继续保持关闭。
 
@@ -140,7 +142,7 @@ python3 scripts/package-release.py
 
 Opening Studio adds a silent opening animation to ChatGPT, Claude and other macOS apps. It plays only on a cold process launch, follows the app's real window, and ends by opening a transparent aperture onto it. Switching back to a running app never replays it. Each app gets its own style and on/off switch.
 
-- Unzip the release, keep the folder structure and open `安装 Opening Studio.command`. The installer uses tools included with macOS and preserves download provenance. The build has an ad-hoc signature and awaits Apple notarization. [Apple's guide to opening downloaded apps](https://support.apple.com/en-us/102445)
+- Unzip the release, keep the folder structure and open `安装 Opening Studio.command`. The installer uses tools included with macOS and keeps the download mark; because macOS refuses to run an un-notarized app that carries it, the installer explains this and asks before removing the mark from the copy it installs (answering anything but y changes nothing). The build has an ad-hoc signature and awaits Apple notarization. [Apple's guide to opening downloaded apps](https://support.apple.com/en-us/102445)
 - **Use:** choose apps and one of eight styles from the menu-bar dotted-circle icon › 应用与开屏… (apps & openings). Styles: Frosted Script, Ink Landscape, Aurora Field, Phosphor Terminal, Great Wall Pass, Candlelit Spell, Planetary Voyage and Neon Rain. Each style can be customised (palette or your own accent colour, pace, font, one- or two-line layout, size, and its own scene elements) with a live preview.
 - **Quit / uninstall:** menu bar › 退出 Opening Studio (quit) stops it until next login. `delivery/卸载 Opening Studio.command` (uninstall) removes the app and login item and keeps your settings.
 - **Privacy:** no network access during playback, and no Accessibility or Screen Recording permission. It reads only launch events, app icons and window bounds, and never chat content.
